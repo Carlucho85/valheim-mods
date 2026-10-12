@@ -34,9 +34,17 @@ ARCHIVE_METADATA = {
 }
 TEXT_DOC_SUFFIXES = {".md", ".pdb", ".mdb"}
 IGNORED_DOC_NAMES = {"readme.md", "changelog.md", "changelog.txt"}
-# The server log identifies Thunderstore's 2.3.4 copy as active; the installed
-# plugin folder still contains 2.2.11 and must not override it in client packs.
-THUNDERSTORE_PREFERRED_DLLS = {"adventurebackpacks.dll"}
+# The server log identifies these Thunderstore copies as newer/active than the
+# stale DLLs left in the installed plugin folders.
+THUNDERSTORE_PREFERRED_DLLS = {
+    "adventurebackpacks.dll",
+    "ammocount.dll",
+    "bepinex.configdrawers.dll",
+    "dooropenerbruh.dll",
+    "minimalstatuseffects.dll",
+    "advize_planteasily.dll",
+    "shieldmebruh.dll",
+}
 
 
 class PackageError(RuntimeError):
@@ -71,7 +79,18 @@ def is_stale_adventure_backpacks_file(
 ) -> bool:
     return (
         relative.casefold().split("/", 1)[0] == "adventurebackpacks"
-        and bool(THUNDERSTORE_PREFERRED_DLLS & thunderstore_dll_names)
+        and "adventurebackpacks.dll" in thunderstore_dll_names
+    )
+
+
+def is_stale_preferred_plugin_dll(
+    relative: str, thunderstore_dll_names: set[str]
+) -> bool:
+    basename = PurePosixPath(relative).name.casefold()
+    return (
+        not relative.casefold().startswith("thunderstore/")
+        and basename in THUNDERSTORE_PREFERRED_DLLS
+        and basename in thunderstore_dll_names
     )
 
 
@@ -206,7 +225,9 @@ def discover_server_files(
             continue
         if is_quick_connect_path(relative):
             continue
-        if is_stale_adventure_backpacks_file(relative, thunderstore_dll_names):
+        if is_stale_adventure_backpacks_file(
+            relative, thunderstore_dll_names
+        ) or is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
@@ -234,7 +255,9 @@ def discover_server_files(
             continue
         if is_quick_connect_path(relative):
             continue
-        if is_stale_adventure_backpacks_file(relative, thunderstore_dll_names):
+        if is_stale_adventure_backpacks_file(
+            relative, thunderstore_dll_names
+        ) or is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
