@@ -35,7 +35,7 @@ autenticado y el cambio del launcher integrado en `main`:
 .\tools\publish_client_release.ps1 `
   -ServerPlugins "C:\ruta\BepInEx\plugins" `
   -ServerConfigFolder "C:\ruta\BepInEx\config" `
-  -Version "v1.0.2"
+  -Version "v1.0.3"
 ```
 
 Para no publicar por accidente claves o configuraciones privadas, solo se
@@ -43,17 +43,16 @@ incluyen los archivos del servidor enumerados en
 `client-pack/server-config-allowlist.txt`. Revisa cada archivo antes de añadir
 su ruta. Se conservan los plugins recibidos del servidor excepto QuickConnect,
 que permanece en el servidor y se omite solo en el paquete cliente. Las
-configuraciones de BepInEx/config se distribuyen solo tras
-revisión y mediante la lista de permitidos.
-El ZIP de plugins recibido no incluye `BepInEx/config`, así que esta versión
-no distribuye ajustes del servidor: para añadirlos hace falta recibir esa
-carpeta actual y revisar los archivos que se quieran compartir.
+configuraciones de BepInEx/config se distribuyen solo tras revisión y mediante
+la lista de permitidos. Esta versión no distribuye ajustes del servidor,
+aunque el ZIP completo incluya `BepInEx/config`.
 
-El proceso conserva los plugins del servidor, omite una copia Thunderstore
-cuando ya existe una DLL con el mismo nombre en las carpetas directas
-(prefiriendo la copia del plugin instalado), y omite QuickConnect y
-metadatos/documentación. Después aplica localizaciones y la configuración
-del menú, descarga y verifica el paquete oficial de BepInEx, construye
+El proceso acepta un ZIP de `plugins` o de la carpeta completa `BepInEx`,
+conserva los plugins del servidor, resuelve copias duplicadas según la versión
+activa (Adventure Backpacks 2.3.4 está en `thunderstore/`, no en la carpeta
+directa antigua), y omite QuickConnect y metadatos/documentación. Después
+aplica localizaciones y la configuración del menú, descarga y verifica el
+paquete oficial de BepInEx, construye
 `valheim-mods-cliente.zip`, genera manifiestos y hashes, compila el launcher y
 publica una GitHub Release. Los
 jugadores no tienen que descargar ni ejecutar scripts: solo usan el `.exe`.

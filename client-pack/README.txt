@@ -10,3 +10,5 @@ El archivo plugins.zip recibido no contiene configuraciones del servidor.
 El paquete conserva los plugins del servidor excepto QuickConnect, que no se
 usa en los clientes. QuickConnect permanece instalado en el servidor. Las
 configuraciones del servidor solo se copian si están revisadas y permitidas.
+Para Adventure Backpacks se usa la copia 2.3.4 activa del servidor; se descarta
+la copia antigua 2.2.11 que queda en la carpeta directa del plugin.
