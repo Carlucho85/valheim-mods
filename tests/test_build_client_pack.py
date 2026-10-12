@@ -45,26 +45,27 @@ class ClientPackTests(unittest.TestCase):
                     "plugins/thunderstore/ICONNX.png": b"keep",
                     "plugins/thunderstore/IconNX.png": b"skip duplicate artwork",
                     "plugins/MaxPlayerCount.dll": b"server only",
+                    "plugins/Other.dll": b"client plugin",
                     "plugins/thunderstore/quick_connect_servers.cfg": b"host:secret",
                     "plugins/vortex.deployment.json": b"local path",
                 },
             )
             with zipfile.ZipFile(source) as archive:
-                selected = build_client_pack.discover_server_files(archive)
-            self.assertEqual(
-                [output for _, output in selected],
-                [
-                    "BepInEx/plugins/QuickConnect/QuickConnect.dll",
-                    "BepInEx/plugins/thunderstore/ICONNX.png",
-                ],
-            )
+                selected = build_client_pack.discover_server_files(archive                )
+                self.assertEqual(
+                    [output for _, output in selected],
+                    [
+                        "BepInEx/plugins/thunderstore/ICONNX.png",
+                        "BepInEx/plugins/Other.dll",
+                    ],
+                )
 
     def test_accepts_server_plugins_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             server = Path(temporary)
-            plugins = server / "BepInEx" / "plugins"
-            (plugins / "QuickConnect").mkdir(parents=True)
-            (plugins / "QuickConnect" / "QuickConnect.dll").write_bytes(b"client")
+            plugins = server / "BepInEx" / "plugins" / "Other"
+            plugins.mkdir(parents=True)
+            (plugins / "Other.dll").write_bytes(b"client")
             (plugins / "MaxPlayerCount.dll").write_bytes(b"server only")
 
             with build_client_pack.open_server_source(server) as source:
@@ -72,7 +73,26 @@ class ClientPackTests(unittest.TestCase):
 
             self.assertEqual(
                 [output for _, output in selected],
-                ["BepInEx/plugins/QuickConnect/QuickConnect.dll"],
+                ["BepInEx/plugins/Other/Other.dll"],
+            )
+
+    def test_quick_connect_is_excluded_from_flat_and_nested_plugin_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(
+                root,
+                {
+                    "plugins/QuickConnect.dll": b"plugin",
+                    "plugins/QuickConnect/QuickConnect.dll": b"nested plugin",
+                    "plugins/QuickConnect/quick_connect_servers.cfg": b"password",
+                    "plugins/Other/Other.dll": b"client",
+                },
+            )
+            with zipfile.ZipFile(source) as archive:
+                selected = build_client_pack.discover_server_files(archive)
+            self.assertEqual(
+                [output for _, output in selected],
+                ["BepInEx/plugins/Other/Other.dll"],
             )
 
     def test_build_merges_localization_and_emits_integrity_assets(self) -> None:
@@ -94,9 +114,15 @@ class ClientPackTests(unittest.TestCase):
                 },
             )
             loader, loader_hash = self.make_loader(root)
+            plugin_overrides = root / "plugin-overrides" / "AugaLite"
+            plugin_overrides.mkdir(parents=True)
+            (plugin_overrides / "AugaLite.dll").write_bytes(b"updated plugin")
             overrides = {
                 "BepInEx/plugins/AugaLite/translations.json": json.dumps(
                     {"known": "Español", "": ""}
+                ).encode(),
+                "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
+                    {"one": "Mochila"}
                 ).encode(),
                 "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
                     {"two": "Dos"}
@@ -130,7 +156,11 @@ class ClientPackTests(unittest.TestCase):
                     )
                     output_dir = root / "out"
                     manifest = build_client_pack.write_package(
-                        source, output_dir, "v1.0.0", loader
+                        source,
+                        output_dir,
+                        "v1.0.0",
+                        loader,
+                        plugin_override_dir=root / "plugin-overrides",
                     )
                     server_directory = root / "server" / "BepInEx" / "plugins"
                     with zipfile.ZipFile(source) as server_archive:
@@ -162,16 +192,84 @@ class ClientPackTests(unittest.TestCase):
                         "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
                     )
                 )
-                self.assertEqual(backpack, {"one": "Uno", "two": "Dos"})
+                self.assertEqual(backpack, {"one": "Mochila", "two": "Dos"})
                 auga = json.loads(
                     package.read("BepInEx/plugins/AugaLite/translations.json")
                 )
                 self.assertEqual(auga, {"known": "Español", "": ""})
+                self.assertEqual(
+                    package.read("BepInEx/plugins/AugaLite/AugaLite.dll"),
+                    b"updated plugin",
+                )
                 embedded = json.loads(
                     package.read(build_client_pack.PACKAGE_MANIFEST_NAME)
                 )
                 self.assertEqual(embedded["version"], "v1.0.0")
                 self.assertTrue(all(item["sha256"] for item in embedded["files"]))
+
+    def test_packages_only_allowlisted_server_config_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            server = self.make_archive(root, {"plugins/Other/Other.dll": b"plugin"})
+            config_folder = root / "config"
+            config_folder.mkdir()
+            (config_folder / "Other.cfg").write_bytes(b"Feature = true\n")
+            (config_folder / "QuickConnect.cfg").write_text("Password = hidden\n", encoding="utf-8")
+            allowlist = root / "allowlist.txt"
+            allowlist.write_text("# reviewed configs\nOther.cfg\n", encoding="utf-8")
+            loader, loader_hash = self.make_loader(root)
+            loader_info = root / "bepinex-pack.json"
+            loader_info.write_text(
+                json.dumps(
+                    {
+                        "version": "test",
+                        "url": "not-used",
+                        "sha256": loader_hash,
+                        "archiveName": "BepInExPack_Valheim-test.zip",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            empty_overrides = root / "overrides"
+            empty_overrides.mkdir()
+            output_dir = root / "out"
+
+            with patch.object(build_client_pack, "OVERRIDES", empty_overrides), patch.object(
+                build_client_pack, "LOADER_INFO", loader_info
+            ):
+                manifest = build_client_pack.write_package(
+                    server,
+                    output_dir,
+                    "v1.0.0",
+                    loader,
+                    config_folder,
+                    allowlist,
+                )
+
+            with zipfile.ZipFile(output_dir / build_client_pack.PACKAGE_NAME) as package:
+                self.assertEqual(package.read("BepInEx/config/Other.cfg"), b"Feature = true\n")
+                self.assertNotIn("BepInEx/config/QuickConnect.cfg", package.namelist())
+            with zipfile.ZipFile(output_dir / build_client_pack.PACKAGE_NAME) as package:
+                embedded = json.loads(package.read(build_client_pack.PACKAGE_MANIFEST_NAME))
+            self.assertTrue(
+                any(item["path"] == "BepInEx/config/Other.cfg" for item in embedded["files"])
+            )
+
+    def test_rejects_quick_connect_server_config_allowlist_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            allowlist = root / "allowlist.txt"
+            allowlist.write_text("quick_connect_servers.cfg\n", encoding="utf-8")
+            with self.assertRaisesRegex(build_client_pack.PackageError, "Quick Connect"):
+                build_client_pack.load_server_configs(root, allowlist)
+
+    def test_rejects_quick_connect_plugin_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "QuickConnect").mkdir()
+            (root / "QuickConnect" / "QuickConnect.dll").write_bytes(b"plugin")
+            with self.assertRaisesRegex(build_client_pack.PackageError, "Quick Connect"):
+                build_client_pack.load_plugin_overrides(root)
 
 
 if __name__ == "__main__":

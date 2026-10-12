@@ -2,6 +2,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $ServerPlugins,
 
+    [string] $ServerConfigFolder,
+
+    [string] $PluginOverrides,
+
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$')]
     [string] $Version,
@@ -14,6 +18,12 @@ $Repository = "Carlucho85/valheim-mods"
 
 if (-not (Test-Path -LiteralPath $ServerPlugins)) {
     throw "No se encontró el ZIP o la carpeta de plugins del servidor: $ServerPlugins"
+}
+if ($ServerConfigFolder -and -not (Test-Path -LiteralPath $ServerConfigFolder -PathType Container)) {
+    throw "No se encontró la carpeta de configuración del servidor: $ServerConfigFolder"
+}
+if ($PluginOverrides -and -not (Test-Path -LiteralPath $PluginOverrides -PathType Container)) {
+    throw "No se encontró la carpeta de plugins de reemplazo: $PluginOverrides"
 }
 
 $Branch = (& git branch --show-current).Trim()
@@ -55,10 +65,19 @@ if ($LASTEXITCODE -eq 0) {
 $OutputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
 
-& python ".\tools\build_client_pack.py" `
-    --server-plugins $ServerPlugins `
-    --version $Version `
-    --output-dir $OutputPath
+$BuilderArguments = @(
+    ".\tools\build_client_pack.py",
+    "--server-plugins", $ServerPlugins,
+    "--version", $Version,
+    "--output-dir", $OutputPath
+)
+if ($ServerConfigFolder) {
+    $BuilderArguments += @("--server-config-folder", $ServerConfigFolder)
+}
+if ($PluginOverrides) {
+    $BuilderArguments += @("--plugin-overrides", $PluginOverrides)
+}
+& python @BuilderArguments
 if ($LASTEXITCODE -ne 0) {
     throw "Falló la creación o validación del paquete cliente."
 }

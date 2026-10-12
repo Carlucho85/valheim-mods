@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OVERRIDES = ROOT / "client-pack" / "overrides"
 LOADER_INFO = ROOT / "client-pack" / "bepinex-pack.json"
 README = ROOT / "client-pack" / "README.txt"
+SERVER_CONFIG_ALLOWLIST = ROOT / "client-pack" / "server-config-allowlist.txt"
 PACKAGE_NAME = "valheim-mods-cliente.zip"
 MANIFEST_NAME = "client-manifest.json"
 PACKAGE_MANIFEST_NAME = "client-pack-manifest.json"
@@ -37,6 +38,11 @@ IGNORED_DOC_NAMES = {"readme.md", "changelog.md", "changelog.txt"}
 
 class PackageError(RuntimeError):
     """An unsafe or inconsistent input package."""
+
+
+def is_quick_connect_path(path: str) -> bool:
+    components = path.replace("\\", "/").casefold().split("/")
+    return any("quickconnect" in re.sub(r"[^a-z0-9]", "", part) for part in components)
 
 
 class DirectoryArchive:
@@ -149,6 +155,8 @@ def discover_server_files(
         relative = source_path[len("plugins/") :]
         if not relative or is_document_or_metadata(relative):
             continue
+        if is_quick_connect_path(relative):
+            continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
         lower = relative.lower()
@@ -168,6 +176,8 @@ def discover_server_files(
             continue
         relative = source_path[len("plugins/") :]
         if not relative or is_document_or_metadata(relative):
+            continue
+        if is_quick_connect_path(relative):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
@@ -209,6 +219,8 @@ def load_overrides() -> tuple[dict[str, bytes], dict[str, dict[str, Any]]]:
         if not path.is_file():
             continue
         relative = path.relative_to(OVERRIDES).as_posix()
+        if is_quick_connect_path(relative):
+            raise PackageError(f"Quick Connect files cannot be included in the client package: {relative}")
         if relative.endswith(".overrides.json"):
             target = relative[: -len(".overrides.json")]
             if not target.lower().endswith(".json"):
@@ -222,22 +234,94 @@ def load_overrides() -> tuple[dict[str, bytes], dict[str, dict[str, Any]]]:
     return replacements, merges
 
 
+def load_plugin_overrides(plugin_dir: Path | None) -> dict[str, bytes]:
+    if plugin_dir is None:
+        return {}
+    if not plugin_dir.is_dir():
+        raise PackageError(f"Plugin override folder does not exist: {plugin_dir}")
+    result: dict[str, bytes] = {}
+    for source in sorted(plugin_dir.rglob("*")):
+        if source.is_symlink():
+            raise PackageError(f"Symbolic links are not allowed in plugin overrides: {source}")
+        if not source.is_file():
+            continue
+        relative = source.relative_to(plugin_dir).as_posix()
+        if is_quick_connect_path(relative):
+            raise PackageError(f"Quick Connect files cannot be included in the client package: {relative}")
+        safe_archive_path(relative)
+        output_path = f"BepInEx/plugins/{relative}"
+        result[output_path] = source.read_bytes()
+    return result
+
+
+def load_server_configs(config_dir: Path | None, allowlist_path: Path) -> dict[str, bytes]:
+    try:
+        allowlist = allowlist_path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError as exc:
+        raise PackageError(f"Cannot read server config allowlist {allowlist_path}: {exc}") from exc
+
+    relative_paths: list[str] = []
+    seen: set[str] = set()
+    for line in allowlist:
+        relative = line.split("#", 1)[0].strip()
+        if not relative:
+            continue
+        relative = safe_archive_path(relative)
+        if is_quick_connect_path(relative):
+            raise PackageError(f"Quick Connect configuration cannot be shared: {relative}")
+        key = relative.casefold()
+        if key in seen:
+            raise PackageError(f"Duplicate server config allowlist entry: {relative}")
+        seen.add(key)
+        if PurePosixPath(relative).suffix.lower() not in {".cfg", ".ini", ".json", ".xml", ".yaml", ".yml"}:
+            raise PackageError(f"Unsupported server config file type: {relative}")
+        relative_paths.append(relative)
+
+    if relative_paths and config_dir is None:
+        raise PackageError("The config allowlist is populated; pass --server-config-folder.")
+    if config_dir is None:
+        return {}
+    if not config_dir.is_dir():
+        raise PackageError(f"Server config folder does not exist: {config_dir}")
+
+    root = config_dir.resolve()
+    result: dict[str, bytes] = {}
+    for relative in relative_paths:
+        source = root.joinpath(*PurePosixPath(relative).parts)
+        if source.is_symlink() or not source.is_file():
+            raise PackageError(f"Allowlisted server config file is missing or unsafe: {relative}")
+        resolved = source.resolve()
+        if not resolved.is_relative_to(root):
+            raise PackageError(f"Server config path escapes its folder: {relative}")
+        result[f"BepInEx/config/{relative}"] = source.read_bytes()
+    return result
+
+
 def transform_source_file(
     archive: zipfile.ZipFile | DirectoryArchive,
-    member: zipfile.ZipInfo,
+    member: zipfile.ZipInfo | None,
     output_path: str,
     replacements: dict[str, bytes],
     merges: dict[str, dict[str, Any]],
+    base_data: bytes | None = None,
 ) -> bytes | None:
-    if output_path in replacements:
-        return replacements[output_path]
     if output_path in merges:
-        base = read_json_bytes(archive.read(member), output_path)
+        if output_path in replacements:
+            source_data = replacements[output_path]
+        elif base_data is not None:
+            source_data = base_data
+        elif member is not None:
+            source_data = archive.read(member)
+        else:
+            raise PackageError(f"Cannot merge JSON overlay without a source file: {output_path}")
+        base = read_json_bytes(source_data, output_path)
         if not isinstance(base, dict):
             raise PackageError(f"Cannot merge localization into non-object JSON: {output_path}")
         base.update(merges[output_path])
         return (json.dumps(base, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    return None
+    if output_path in replacements:
+        return replacements[output_path]
+    return base_data
 
 
 def get_loader_archive(output: Path, supplied: Path | None) -> tuple[Path, dict[str, Any]]:
@@ -277,6 +361,9 @@ def write_package(
     output_dir: Path,
     version: str,
     loader_archive: Path | None = None,
+    server_config_dir: Path | None = None,
+    config_allowlist: Path = SERVER_CONFIG_ALLOWLIST,
+    plugin_override_dir: Path | None = None,
 ) -> dict[str, Any]:
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version):
         raise PackageError("Version must be a semantic version tag such as v1.0.0.")
@@ -286,6 +373,8 @@ def write_package(
 
     loader_path, loader_info = get_loader_archive(output_dir, loader_archive)
     replacements, merges = load_overrides()
+    plugin_overrides = load_plugin_overrides(plugin_override_dir)
+    server_configs = load_server_configs(server_config_dir, config_allowlist)
     package_path = output_dir / PACKAGE_NAME
     package_files: list[dict[str, Any]] = []
     file_entries: list[tuple[zipfile.ZipInfo, str, bytes | None, str]] = []
@@ -293,7 +382,14 @@ def write_package(
         selected = discover_server_files(source)
         used: set[str] = set()
         for member, output_path in selected:
-            data = transform_source_file(source, member, output_path, replacements, merges)
+            data = transform_source_file(
+                source,
+                member,
+                output_path,
+                replacements,
+                merges,
+                plugin_overrides.get(output_path),
+            )
             digest = hashlib.sha256(data).hexdigest() if data is not None else sha256_zip_member(source, member)
             size = len(data) if data is not None else member.file_size
             key = output_path.casefold()
@@ -303,10 +399,38 @@ def write_package(
             file_entries.append((member, output_path, data, digest))
             package_files.append({"path": output_path, "sha256": digest, "size": size})
 
+        for output_path, override_data in sorted(plugin_overrides.items()):
+            if output_path.casefold() in used:
+                continue
+            data = transform_source_file(
+                source, None, output_path, replacements, merges, override_data
+            )
+            if data is None:
+                continue
+            key = output_path.casefold()
+            if key in used:
+                raise PackageError(f"Duplicate client package path: {output_path}")
+            used.add(key)
+            file_entries.append((zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest()))
+            package_files.append({"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
+
+        for output_path, server_data in sorted(server_configs.items()):
+            data = transform_source_file(
+                source, None, output_path, replacements, merges, server_data
+            )
+            if data is None:
+                continue
+            key = output_path.casefold()
+            if key in used:
+                raise PackageError(f"Duplicate client package path: {output_path}")
+            used.add(key)
+            file_entries.append((zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest()))
+            package_files.append({"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
+
     selected_paths = {output_path.casefold() for _, output_path in selected}
     for output_path, data in sorted(replacements.items()):
         safe_archive_path(output_path)
-        if output_path.casefold() in selected_paths:
+        if output_path.casefold() in used or output_path.casefold() in selected_paths:
             continue
         file_entries.append((zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest()))
         package_files.append(
@@ -386,9 +510,33 @@ def main() -> int:
     parser.add_argument("--version", required=True, help="Release version tag, for example v1.0.0")
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".artifacts" / "client-release")
     parser.add_argument("--bepinex-archive", type=Path, help="Optional local copy of the pinned Thunderstore BepInEx ZIP")
+    parser.add_argument(
+        "--server-config-folder",
+        type=Path,
+        help="Optional BepInEx/config folder; only entries in the config allowlist are packaged",
+    )
+    parser.add_argument(
+        "--config-allowlist",
+        type=Path,
+        default=SERVER_CONFIG_ALLOWLIST,
+        help="Text file listing client-safe server configs to package",
+    )
+    parser.add_argument(
+        "--plugin-overrides",
+        type=Path,
+        help="Optional folder of BepInEx/plugins files that replace or supplement server plugins",
+    )
     args = parser.parse_args()
     try:
-        result = write_package(args.server_plugins, args.output_dir, args.version, args.bepinex_archive)
+        result = write_package(
+            args.server_plugins,
+            args.output_dir,
+            args.version,
+            args.bepinex_archive,
+            args.server_config_folder,
+            args.config_allowlist,
+            args.plugin_overrides,
+        )
     except (PackageError, OSError, zipfile.BadZipFile) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
