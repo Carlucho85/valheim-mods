@@ -112,6 +112,38 @@ class ClientPackTests(unittest.TestCase):
                 },
             )
 
+    def test_prefers_server_active_thunderstore_plugin_versions(self) -> None:
+        stale_dlls = {
+            "AmmoCount.dll",
+            "BepInEx.ConfigDrawers.dll",
+            "DoorOpenerBruh.dll",
+            "MinimalStatusEffects.dll",
+            "Advize_PlantEasily.dll",
+            "ShieldMeBruh.dll",
+        }
+        entries = {}
+        expected = {}
+        for name in sorted(stale_dlls):
+            entries[f"BepInEx/plugins/{name.removesuffix('.dll')}/{name}"] = (
+                f"old-{name}".encode()
+            )
+            entries[f"BepInEx/plugins/thunderstore/{name}"] = (
+                f"active-{name}".encode()
+            )
+            expected[f"BepInEx/plugins/thunderstore/{name}"] = (
+                f"active-{name}".encode()
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = self.make_archive(Path(temporary), entries)
+            with zipfile.ZipFile(source) as archive:
+                selected = build_client_pack.discover_server_files(archive)
+                selected_files = {
+                    output: archive.read(member) for member, output in selected
+                }
+
+        self.assertEqual(selected_files, expected)
+
     def test_accepts_server_plugins_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             server = Path(temporary)

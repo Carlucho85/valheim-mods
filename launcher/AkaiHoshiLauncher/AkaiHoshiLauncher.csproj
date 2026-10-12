@@ -9,7 +9,7 @@
     <AssemblyName>AkaiHoshiLauncher</AssemblyName>
     <Product>Akai Hoshi Valheim</Product>
     <Description>One-click Valheim mod installer for Akai Hoshi: Changarök.</Description>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\akai-hoshi.ico</ApplicationIcon>
   </PropertyGroup>
