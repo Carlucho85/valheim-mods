@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Akai Hoshi | Valheim"
         Width="1040" Height="700" MinWidth="960" MinHeight="640"
+        Icon="/AkaiHoshiLauncher;component/Assets/akai-hoshi.ico"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBrush}"
         Foreground="{StaticResource TextBrush}"
@@ -28,16 +29,6 @@
                         <Grid>
                             <Image Source="/AkaiHoshiLauncher;component/Assets/server-artwork.jpg"
                                    Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
-                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10"
-                                    Background="#D0101117" CornerRadius="18" Padding="8,6">
-                                <StackPanel Orientation="Horizontal">
-                                    <Image Source="/AkaiHoshiLauncher;component/Assets/logo.png"
-                                           Width="25" Height="25" Stretch="Uniform"
-                                           RenderOptions.BitmapScalingMode="HighQuality" />
-                                    <TextBlock Text="AKAI HOSHI" VerticalAlignment="Center" Margin="7,0,2,0"
-                                               FontSize="9" FontWeight="Bold" />
-                                </StackPanel>
-                            </Border>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -58,10 +49,20 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Margin="0,8,0,24">
-                <TextBlock Text="AKAI HOSHI" Foreground="{StaticResource AccentBrush}"
-                           FontSize="11" FontWeight="Bold" />
-                <TextBlock Text="Bienvenido, vikingo" FontSize="31" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <StackPanel Grid.Row="0" Margin="0,8,0,20">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="54" Height="54" CornerRadius="13"
+                            Background="{StaticResource PanelLightBrush}" Padding="5">
+                        <Image Source="/AkaiHoshiLauncher;component/Assets/logo.png"
+                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Margin="13,0,0,0">
+                        <TextBlock Text="AKAI HOSHI" Foreground="{StaticResource AccentBrush}"
+                                   FontSize="12" FontWeight="Bold" />
+                        <TextBlock Text="CHANGARÖK" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock Text="Bienvenido, vikingo" FontSize="29" FontWeight="SemiBold" Margin="0,16,0,0" />
                 <TextBlock Text="Conecta con Changarök y mantén tus mods al día."
                            FontSize="14" Foreground="{StaticResource MutedBrush}" Margin="0,5,0,0" />
             </StackPanel>

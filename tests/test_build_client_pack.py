@@ -34,30 +34,54 @@ class ClientPackTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(build_client_pack.PackageError):
                 build_client_pack.safe_archive_path(path)
 
-    def test_selects_unique_client_plugins_and_skips_server_config(self) -> None:
+    def test_preserves_server_plugins_and_filters_quick_connect(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.make_archive(
                 root,
                 {
-                    "plugins/QuickConnect/QuickConnect.dll": b"client",
-                    "plugins/thunderstore/QuickConnect.dll": b"duplicate",
+                    "plugins/QuickConnect/QuickConnect.dll": b"server-only",
+                    "plugins/thunderstore/QuickConnect.dll": b"client",
                     "plugins/thunderstore/ICONNX.png": b"keep",
                     "plugins/thunderstore/IconNX.png": b"skip duplicate artwork",
-                    "plugins/MaxPlayerCount.dll": b"server only",
+                    "plugins/MaxPlayerCount.dll": b"server plugin",
                     "plugins/Other.dll": b"client plugin",
                     "plugins/thunderstore/quick_connect_servers.cfg": b"host:secret",
                     "plugins/vortex.deployment.json": b"local path",
                 },
             )
             with zipfile.ZipFile(source) as archive:
-                selected = build_client_pack.discover_server_files(archive                )
-                self.assertEqual(
+                selected = build_client_pack.discover_server_files(archive)
+                self.assertCountEqual(
                     [output for _, output in selected],
-                    [
-                        "BepInEx/plugins/thunderstore/ICONNX.png",
+                    {
+                        "BepInEx/plugins/MaxPlayerCount.dll",
                         "BepInEx/plugins/Other.dll",
-                    ],
+                        "BepInEx/plugins/thunderstore/ICONNX.png",
+                    },
+                )
+
+    def test_prefers_direct_plugin_dll_over_thunderstore_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(
+                root,
+                {
+                    "plugins/QuickConnect/QuickConnect.dll": b"server version",
+                    "plugins/thunderstore/QuickConnect.dll": b"different version",
+                    "plugins/Other/Other.dll": b"direct plugin version",
+                    "plugins/thunderstore/Other.dll": b"different package copy",
+                },
+            )
+            with zipfile.ZipFile(source) as archive:
+                selected = build_client_pack.discover_server_files(archive)
+                self.assertCountEqual(
+                    [output for _, output in selected],
+                    ["BepInEx/plugins/Other/Other.dll"],
+                )
+                self.assertEqual(
+                    archive.read(selected[0][0]),
+                    b"direct plugin version",
                 )
 
     def test_accepts_server_plugins_directory(self) -> None:
@@ -73,27 +97,44 @@ class ClientPackTests(unittest.TestCase):
 
             self.assertEqual(
                 [output for _, output in selected],
-                ["BepInEx/plugins/Other/Other.dll"],
+                [
+                    "BepInEx/plugins/Other/MaxPlayerCount.dll",
+                    "BepInEx/plugins/Other/Other.dll",
+                ],
             )
 
-    def test_quick_connect_is_excluded_from_flat_and_nested_plugin_paths(self) -> None:
+    def test_quick_connect_plugin_and_credentials_are_filtered(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.make_archive(
                 root,
                 {
                     "plugins/QuickConnect.dll": b"plugin",
-                    "plugins/QuickConnect/QuickConnect.dll": b"nested plugin",
                     "plugins/QuickConnect/quick_connect_servers.cfg": b"password",
                     "plugins/Other/Other.dll": b"client",
                 },
             )
             with zipfile.ZipFile(source) as archive:
                 selected = build_client_pack.discover_server_files(archive)
-            self.assertEqual(
+            self.assertCountEqual(
                 [output for _, output in selected],
-                ["BepInEx/plugins/Other/Other.dll"],
+                [
+                    "BepInEx/plugins/Other/Other.dll",
+                ],
             )
+
+    def test_rejects_quick_connect_client_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            override = root / "overrides" / "BepInEx" / "plugins" / "QuickConnect"
+            override.mkdir(parents=True)
+            (override / "QuickConnect.dll").write_bytes(b"plugin")
+            with patch.object(build_client_pack, "OVERRIDES", root / "overrides"):
+                with self.assertRaisesRegex(
+                    build_client_pack.PackageError,
+                    "Quick Connect cannot be included",
+                ):
+                    build_client_pack.load_overrides()
 
     def test_build_merges_localization_and_emits_integrity_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -105,6 +146,9 @@ class ClientPackTests(unittest.TestCase):
                     "plugins/AugaLite/translations.json": json.dumps(
                         {"known": "English", "": ""}
                     ).encode(),
+                    "plugins/MaxPlayerCount.dll": b"server plugin",
+                    "plugins/QuickConnect/QuickConnect.dll": b"quick connect plugin",
+                    "plugins/QuickConnect/quick_connect_servers.cfg": b"host:secret",
                     "plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
                         {"one": "Uno"}
                     ).encode(),
@@ -178,7 +222,7 @@ class ClientPackTests(unittest.TestCase):
                 build_client_pack.OVERRIDES = original_overrides
 
             self.assertEqual(manifest["version"], "v1.0.0")
-            self.assertEqual(manifest["pluginDllCount"], 1)
+            self.assertEqual(manifest["pluginDllCount"], 2)
             self.assertEqual(directory_manifest["fileCount"], manifest["fileCount"])
             with zipfile.ZipFile(directory_output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertIsNone(package.testzip())
@@ -200,6 +244,18 @@ class ClientPackTests(unittest.TestCase):
                 self.assertEqual(
                     package.read("BepInEx/plugins/AugaLite/AugaLite.dll"),
                     b"updated plugin",
+                )
+                self.assertEqual(
+                    package.read("BepInEx/plugins/MaxPlayerCount.dll"),
+                    b"server plugin",
+                )
+                self.assertNotIn(
+                    "BepInEx/plugins/QuickConnect/QuickConnect.dll",
+                    package.namelist(),
+                )
+                self.assertNotIn(
+                    "BepInEx/plugins/QuickConnect/quick_connect_servers.cfg",
+                    package.namelist(),
                 )
                 embedded = json.loads(
                     package.read(build_client_pack.PACKAGE_MANIFEST_NAME)
@@ -255,21 +311,22 @@ class ClientPackTests(unittest.TestCase):
                 any(item["path"] == "BepInEx/config/Other.cfg" for item in embedded["files"])
             )
 
-    def test_rejects_quick_connect_server_config_allowlist_entry(self) -> None:
+    def test_rejects_sensitive_quick_connect_config_allowlist_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             allowlist = root / "allowlist.txt"
-            allowlist.write_text("quick_connect_servers.cfg\n", encoding="utf-8")
-            with self.assertRaisesRegex(build_client_pack.PackageError, "Quick Connect"):
+            allowlist.write_text("QuickConnect/quick_connect_servers.cfg\n", encoding="utf-8")
+            with self.assertRaisesRegex(build_client_pack.PackageError, "Sensitive server config"):
                 build_client_pack.load_server_configs(root, allowlist)
 
-    def test_rejects_quick_connect_plugin_override(self) -> None:
+    def test_omits_quick_connect_plugin_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / "QuickConnect").mkdir()
             (root / "QuickConnect" / "QuickConnect.dll").write_bytes(b"plugin")
-            with self.assertRaisesRegex(build_client_pack.PackageError, "Quick Connect"):
-                build_client_pack.load_plugin_overrides(root)
+            (root / "QuickConnect" / "quick_connect_servers.cfg").write_bytes(b"secret")
+            overrides = build_client_pack.load_plugin_overrides(root)
+            self.assertEqual(overrides, {})
 
 
 if __name__ == "__main__":

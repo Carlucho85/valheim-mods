@@ -23,7 +23,7 @@ SERVER_CONFIG_ALLOWLIST = ROOT / "client-pack" / "server-config-allowlist.txt"
 PACKAGE_NAME = "valheim-mods-cliente.zip"
 MANIFEST_NAME = "client-manifest.json"
 PACKAGE_MANIFEST_NAME = "client-pack-manifest.json"
-SERVER_ONLY_DLLS = {"maxplayercount.dll"}
+SENSITIVE_PLUGIN_CONFIGS = {"quickconnectserverscfg"}
 # Duplicate Thunderstore package artwork; Windows treats these case variants as one path.
 NON_RUNTIME_DUPLICATE_FILES = {"thunderstore/IconNX.png"}
 ARCHIVE_METADATA = {
@@ -41,8 +41,18 @@ class PackageError(RuntimeError):
 
 
 def is_quick_connect_path(path: str) -> bool:
-    components = path.replace("\\", "/").casefold().split("/")
-    return any("quickconnect" in re.sub(r"[^a-z0-9]", "", part) for part in components)
+    for component in path.replace("\\", "/").casefold().split("/"):
+        normalized = re.sub(r"[^a-z0-9]", "", component)
+        stem = re.sub(r"[^a-z0-9]", "", PurePosixPath(component).stem)
+        if normalized == "quickconnect" or stem == "quickconnect":
+            return True
+    return False
+
+
+def is_sensitive_plugin_config(path: str) -> bool:
+    basename = PurePosixPath(path.replace("\\", "/")).name.casefold()
+    normalized = re.sub(r"[^a-z0-9]", "", basename)
+    return normalized in SENSITIVE_PLUGIN_CONFIGS
 
 
 class DirectoryArchive:
@@ -161,12 +171,17 @@ def discover_server_files(
             continue
         lower = relative.lower()
         basename = PurePosixPath(relative).name.lower()
-        if basename in SERVER_ONLY_DLLS or basename == "quick_connect_servers.cfg":
+        if is_sensitive_plugin_config(relative):
             continue
         if not lower.startswith("thunderstore/"):
             if basename.endswith(".dll"):
                 direct_dll_names.add(basename)
-            direct_sidecar_names.add(basename)
+            elif (
+                basename.startswith("adventurebackpacks.")
+                or basename.startswith("xportal-")
+                or basename == "translations.json"
+            ):
+                direct_sidecar_names.add(basename)
 
     for member in archive.infolist():
         if member.is_dir():
@@ -183,7 +198,7 @@ def discover_server_files(
             continue
         lower = relative.lower()
         basename = PurePosixPath(relative).name.lower()
-        if basename in SERVER_ONLY_DLLS or basename == "quick_connect_servers.cfg":
+        if is_sensitive_plugin_config(relative):
             continue
         if lower.startswith("thunderstore/"):
             if basename.endswith(".dll") and basename in direct_dll_names:
@@ -220,7 +235,7 @@ def load_overrides() -> tuple[dict[str, bytes], dict[str, dict[str, Any]]]:
             continue
         relative = path.relative_to(OVERRIDES).as_posix()
         if is_quick_connect_path(relative):
-            raise PackageError(f"Quick Connect files cannot be included in the client package: {relative}")
+            raise PackageError(f"Quick Connect cannot be included in client overrides: {relative}")
         if relative.endswith(".overrides.json"):
             target = relative[: -len(".overrides.json")]
             if not target.lower().endswith(".json"):
@@ -247,7 +262,9 @@ def load_plugin_overrides(plugin_dir: Path | None) -> dict[str, bytes]:
             continue
         relative = source.relative_to(plugin_dir).as_posix()
         if is_quick_connect_path(relative):
-            raise PackageError(f"Quick Connect files cannot be included in the client package: {relative}")
+            continue
+        if is_sensitive_plugin_config(relative):
+            raise PackageError(f"Sensitive plugin config cannot be included in the client package: {relative}")
         safe_archive_path(relative)
         output_path = f"BepInEx/plugins/{relative}"
         result[output_path] = source.read_bytes()
@@ -267,8 +284,8 @@ def load_server_configs(config_dir: Path | None, allowlist_path: Path) -> dict[s
         if not relative:
             continue
         relative = safe_archive_path(relative)
-        if is_quick_connect_path(relative):
-            raise PackageError(f"Quick Connect configuration cannot be shared: {relative}")
+        if is_sensitive_plugin_config(relative):
+            raise PackageError(f"Sensitive server config cannot be shared: {relative}")
         key = relative.casefold()
         if key in seen:
             raise PackageError(f"Duplicate server config allowlist entry: {relative}")
