@@ -1,0 +1,6 @@
+.artifacts/
+launcher/AkaiHoshiLauncher/bin/
+launcher/AkaiHoshiLauncher/obj/
+__pycache__/
+*.py[cod]
+valheim-mods-cliente.zip
