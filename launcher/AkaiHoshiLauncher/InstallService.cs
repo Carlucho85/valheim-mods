@@ -452,7 +452,7 @@ public sealed class InstallService
     {
         string relative = ValidateRelativePath(path);
         if (!(relative.StartsWith("BepInEx/plugins/", StringComparison.OrdinalIgnoreCase)
-              || relative.StartsWith("BepInEx/config/ValheimMenu/", StringComparison.OrdinalIgnoreCase)))
+              || relative.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException($"El modpack declara una ruta fuera de sus carpetas permitidas: {relative}");
         return relative;
     }
@@ -461,7 +461,7 @@ public sealed class InstallService
     {
         string relative = ValidateRelativePath(path);
         if (relative.StartsWith("BepInEx/plugins/", StringComparison.OrdinalIgnoreCase)
-            || relative.StartsWith("BepInEx/config/ValheimMenu/", StringComparison.OrdinalIgnoreCase)
+            || relative.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase)
             || relative.StartsWith("BepInEx/core/", StringComparison.OrdinalIgnoreCase)
             || relative.StartsWith("BepInEx/patchers/", StringComparison.OrdinalIgnoreCase)
             || relative.StartsWith("BepInEx/monomod/", StringComparison.OrdinalIgnoreCase)

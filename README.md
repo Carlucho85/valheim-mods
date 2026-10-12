@@ -34,14 +34,26 @@ autenticado y el cambio del launcher integrado en `main`:
 ```powershell
 .\tools\publish_client_release.ps1 `
   -ServerPlugins "C:\ruta\BepInEx\plugins" `
+  -ServerConfigFolder "C:\ruta\BepInEx\config" `
   -Version "v1.0.1"
 ```
+
+Para no publicar por accidente claves o configuraciones privadas, solo se
+incluyen los archivos del servidor enumerados en
+`client-pack/server-config-allowlist.txt`. Revisa cada archivo antes de añadir
+su ruta; Quick Connect y su configuración quedan excluidos.
+El ZIP de plugins recibido no incluye `BepInEx/config`, así que esta versión
+no distribuye ajustes del servidor: para añadirlos hace falta recibir esa
+carpeta actual y revisar los archivos que se quieran compartir.
 
 El proceso clasifica archivos de servidor, elimina duplicados, aplica
 localizaciones y la configuración del menú, descarga y verifica el paquete
 oficial de BepInEx, construye `valheim-mods-cliente.zip`, genera manifiestos y
 hashes, compila el launcher y publica una GitHub Release. Los jugadores no
-tienen que descargar ni ejecutar scripts: solo usan el `.exe`.
+tienen que descargar ni ejecutar scripts: solo usan el `.exe`. Para corregir o
+reemplazar plugins concretos sin editar la fuente, pasa
+`-PluginOverrides "C:\ruta\plugins-actualizados"`; la carpeta debe replicar
+las rutas relativas dentro de `BepInEx\plugins`.
 
 Los assets grandes se alojan en Releases y no se guardan en el historial Git.
 Cada release contiene el ZIP para el launcher, los manifiestos/checksums y el
