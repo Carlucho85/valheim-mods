@@ -1,0 +1,15 @@
+{
+  "mod_betterarchery_test": "Cargado",
+  "mod_betterarchery_tombstone_space_error": "No hay espacio suficiente en el inventario. Objetos soltados:",
+  "mod_betterarchery_welcome_topic": "Te damos la bienvenida a BetterArchery",
+  "mod_betterarchery_welcome_text": "Gracias por usar Better Archery. ¡No olvides ajustar la configuración a tu gusto!",
+  "mod_betterarchery_quiver_equipped_error": "No puedes soltar el carcaj mientras lo llevas equipado.",
+  "mod_betterarchery_quiver_wrong_item_error": "No puedes guardar esto en el carcaj.",
+  "mod_betterarchery_quiver_transfer_chest_error": "Quítate el objeto antes de guardarlo.",
+  "mod_betterarchery_quiver_item_swap_error": "No puedes intercambiar este objeto.",
+  "mod_betterarchery_quiver_swap_chest_error": "Quítate el objeto antes de moverlo.",
+  "mod_betterarchery_quiver_drop_outside_error": "Quítate primero el carcaj.",
+  "mod_betterarchery_quiver_unequip_error": "Vacía primero el carcaj.",
+  "mod_betterarchery_leather_quiver_name": "Carcaj de cuero",
+  "mod_betterarchery_leather_quiver_description": "Un carcaj de cuero que añade 3 espacios para tus flechas."
+}
