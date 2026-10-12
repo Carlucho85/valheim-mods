@@ -34,6 +34,9 @@ ARCHIVE_METADATA = {
 }
 TEXT_DOC_SUFFIXES = {".md", ".pdb", ".mdb"}
 IGNORED_DOC_NAMES = {"readme.md", "changelog.md", "changelog.txt"}
+# The server log identifies Thunderstore's 2.3.4 copy as active; the installed
+# plugin folder still contains 2.2.11 and must not override it in client packs.
+THUNDERSTORE_PREFERRED_DLLS = {"adventurebackpacks.dll"}
 
 
 class PackageError(RuntimeError):
@@ -53,6 +56,23 @@ def is_sensitive_plugin_config(path: str) -> bool:
     basename = PurePosixPath(path.replace("\\", "/")).name.casefold()
     normalized = re.sub(r"[^a-z0-9]", "", basename)
     return normalized in SENSITIVE_PLUGIN_CONFIGS
+
+
+def plugin_relative_path(path: str) -> str | None:
+    normalized = safe_archive_path(path)
+    for prefix in ("BepInEx/plugins/", "plugins/"):
+        if normalized.casefold().startswith(prefix.casefold()):
+            return normalized[len(prefix) :]
+    return None
+
+
+def is_stale_adventure_backpacks_file(
+    relative: str, thunderstore_dll_names: set[str]
+) -> bool:
+    return (
+        relative.casefold().split("/", 1)[0] == "adventurebackpacks"
+        and bool(THUNDERSTORE_PREFERRED_DLLS & thunderstore_dll_names)
+    )
 
 
 class DirectoryArchive:
@@ -155,17 +175,38 @@ def discover_server_files(
     files: list[tuple[zipfile.ZipInfo, str]] = []
     direct_dll_names: set[str] = set()
     direct_sidecar_names: set[str] = set()
+    thunderstore_dll_names: set[str] = set()
 
     for member in archive.infolist():
         if member.is_dir():
             continue
-        source_path = safe_archive_path(member.filename)
-        if not source_path.startswith("plugins/"):
+        relative = plugin_relative_path(member.filename)
+        if relative is None:
             continue
-        relative = source_path[len("plugins/") :]
         if not relative or is_document_or_metadata(relative):
             continue
         if is_quick_connect_path(relative):
+            continue
+        if relative in NON_RUNTIME_DUPLICATE_FILES:
+            continue
+        lower = relative.lower()
+        basename = PurePosixPath(relative).name.lower()
+        if is_sensitive_plugin_config(relative):
+            continue
+        if lower.startswith("thunderstore/") and basename.endswith(".dll"):
+            thunderstore_dll_names.add(basename)
+
+    for member in archive.infolist():
+        if member.is_dir():
+            continue
+        relative = plugin_relative_path(member.filename)
+        if relative is None:
+            continue
+        if not relative or is_document_or_metadata(relative):
+            continue
+        if is_quick_connect_path(relative):
+            continue
+        if is_stale_adventure_backpacks_file(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
@@ -186,13 +227,14 @@ def discover_server_files(
     for member in archive.infolist():
         if member.is_dir():
             continue
-        source_path = safe_archive_path(member.filename)
-        if not source_path.startswith("plugins/"):
+        relative = plugin_relative_path(member.filename)
+        if relative is None:
             continue
-        relative = source_path[len("plugins/") :]
         if not relative or is_document_or_metadata(relative):
             continue
         if is_quick_connect_path(relative):
+            continue
+        if is_stale_adventure_backpacks_file(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
@@ -201,10 +243,18 @@ def discover_server_files(
         if is_sensitive_plugin_config(relative):
             continue
         if lower.startswith("thunderstore/"):
-            if basename.endswith(".dll") and basename in direct_dll_names:
+            if (
+                basename.endswith(".dll")
+                and basename in direct_dll_names
+                and basename not in THUNDERSTORE_PREFERRED_DLLS
+            ):
                 continue
             if (
-                (basename.startswith("adventurebackpacks.") or basename.startswith("xportal-") or basename == "translations.json")
+                (
+                    basename.startswith("adventurebackpacks.")
+                    or basename.startswith("xportal-")
+                    or basename == "translations.json"
+                )
                 and basename in direct_sidecar_names
             ):
                 continue
@@ -223,7 +273,9 @@ def discover_server_files(
                 raise PackageError(f"Conflicting plugin DLL basename: {output_path}")
             dlls.add(dll_key)
     if not dlls:
-        raise PackageError("The server ZIP contains no plugin DLLs under plugins/.")
+        raise PackageError(
+            "The server archive contains no plugin DLLs under plugins/ or BepInEx/plugins/."
+        )
     return files
 
 

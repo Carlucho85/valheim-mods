@@ -84,6 +84,34 @@ class ClientPackTests(unittest.TestCase):
                     b"direct plugin version",
                 )
 
+    def test_prefers_active_adventure_backpacks_thunderstore_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(
+                root,
+                {
+                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.2.11",
+                    "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": b'{"stale":"old"}',
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": b'{"active":"new"}',
+                    "BepInEx/plugins/Other/Other.dll": b"other plugin",
+                },
+            )
+            with zipfile.ZipFile(source) as archive:
+                selected = build_client_pack.discover_server_files(archive)
+                selected_files = {
+                    output: archive.read(member) for member, output in selected
+                }
+
+            self.assertEqual(
+                selected_files,
+                {
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": b'{"active":"new"}',
+                    "BepInEx/plugins/Other/Other.dll": b"other plugin",
+                },
+            )
+
     def test_accepts_server_plugins_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             server = Path(temporary)
@@ -149,8 +177,13 @@ class ClientPackTests(unittest.TestCase):
                     "plugins/MaxPlayerCount.dll": b"server plugin",
                     "plugins/QuickConnect/QuickConnect.dll": b"quick connect plugin",
                     "plugins/QuickConnect/quick_connect_servers.cfg": b"host:secret",
-                    "plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
-                        {"one": "Uno"}
+                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.2.11",
+                    "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
+                        {"stale": "old"}
+                    ).encode(),
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": json.dumps(
+                        {"one": "Uno", "new": "Nueva"}
                     ).encode(),
                     "plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json": json.dumps(
                         {"greeting": "Hola"}
@@ -165,11 +198,8 @@ class ClientPackTests(unittest.TestCase):
                 "BepInEx/plugins/AugaLite/translations.json": json.dumps(
                     {"known": "Español", "": ""}
                 ).encode(),
-                "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
+                "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
                     {"one": "Mochila"}
-                ).encode(),
-                "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
-                    {"two": "Dos"}
                 ).encode(),
                 "BepInEx/plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json.overrides.json": json.dumps(
                     {"portal": "Portal"}
@@ -209,9 +239,10 @@ class ClientPackTests(unittest.TestCase):
                     server_directory = root / "server" / "BepInEx" / "plugins"
                     with zipfile.ZipFile(source) as server_archive:
                         for member in server_archive.infolist():
-                            if member.is_dir() or not member.filename.startswith("plugins/"):
+                            relative = build_client_pack.plugin_relative_path(member.filename)
+                            if member.is_dir() or relative is None:
                                 continue
-                            target = server_directory / member.filename[len("plugins/") :]
+                            target = server_directory / relative
                             target.parent.mkdir(parents=True, exist_ok=True)
                             target.write_bytes(server_archive.read(member))
                     directory_output = root / "directory-out"
@@ -222,7 +253,7 @@ class ClientPackTests(unittest.TestCase):
                 build_client_pack.OVERRIDES = original_overrides
 
             self.assertEqual(manifest["version"], "v1.0.0")
-            self.assertEqual(manifest["pluginDllCount"], 2)
+            self.assertEqual(manifest["pluginDllCount"], 3)
             self.assertEqual(directory_manifest["fileCount"], manifest["fileCount"])
             with zipfile.ZipFile(directory_output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertIsNone(package.testzip())
@@ -233,10 +264,10 @@ class ClientPackTests(unittest.TestCase):
             with zipfile.ZipFile(output_dir / build_client_pack.PACKAGE_NAME) as package:
                 backpack = json.loads(
                     package.read(
-                        "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
+                        "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
                     )
                 )
-                self.assertEqual(backpack, {"one": "Mochila", "two": "Dos"})
+                self.assertEqual(backpack, {"one": "Mochila", "new": "Nueva"})
                 auga = json.loads(
                     package.read("BepInEx/plugins/AugaLite/translations.json")
                 )
@@ -248,6 +279,14 @@ class ClientPackTests(unittest.TestCase):
                 self.assertEqual(
                     package.read("BepInEx/plugins/MaxPlayerCount.dll"),
                     b"server plugin",
+                )
+                self.assertEqual(
+                    package.read("BepInEx/plugins/thunderstore/AdventureBackpacks.dll"),
+                    b"2.3.4",
+                )
+                self.assertNotIn(
+                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll",
+                    package.namelist(),
                 )
                 self.assertNotIn(
                     "BepInEx/plugins/QuickConnect/QuickConnect.dll",
