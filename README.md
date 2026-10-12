@@ -35,23 +35,29 @@ autenticado y el cambio del launcher integrado en `main`:
 .\tools\publish_client_release.ps1 `
   -ServerPlugins "C:\ruta\BepInEx\plugins" `
   -ServerConfigFolder "C:\ruta\BepInEx\config" `
-  -Version "v1.0.1"
+  -Version "v1.0.2"
 ```
 
 Para no publicar por accidente claves o configuraciones privadas, solo se
 incluyen los archivos del servidor enumerados en
 `client-pack/server-config-allowlist.txt`. Revisa cada archivo antes de añadir
-su ruta; Quick Connect y su configuración quedan excluidos.
+su ruta. Se conservan los plugins recibidos del servidor excepto QuickConnect,
+que permanece en el servidor y se omite solo en el paquete cliente. Las
+configuraciones de BepInEx/config se distribuyen solo tras
+revisión y mediante la lista de permitidos.
 El ZIP de plugins recibido no incluye `BepInEx/config`, así que esta versión
 no distribuye ajustes del servidor: para añadirlos hace falta recibir esa
 carpeta actual y revisar los archivos que se quieran compartir.
 
-El proceso clasifica archivos de servidor, elimina duplicados, aplica
-localizaciones y la configuración del menú, descarga y verifica el paquete
-oficial de BepInEx, construye `valheim-mods-cliente.zip`, genera manifiestos y
-hashes, compila el launcher y publica una GitHub Release. Los jugadores no
-tienen que descargar ni ejecutar scripts: solo usan el `.exe`. Para corregir o
-reemplazar plugins concretos sin editar la fuente, pasa
+El proceso conserva los plugins del servidor, omite una copia Thunderstore
+cuando ya existe una DLL con el mismo nombre en las carpetas directas
+(prefiriendo la copia del plugin instalado), y omite QuickConnect y
+metadatos/documentación. Después aplica localizaciones y la configuración
+del menú, descarga y verifica el paquete oficial de BepInEx, construye
+`valheim-mods-cliente.zip`, genera manifiestos y hashes, compila el launcher y
+publica una GitHub Release. Los
+jugadores no tienen que descargar ni ejecutar scripts: solo usan el `.exe`.
+Para corregir o reemplazar plugins concretos sin editar la fuente, pasa
 `-PluginOverrides "C:\ruta\plugins-actualizados"`; la carpeta debe replicar
 las rutas relativas dentro de `BepInEx\plugins`.
 

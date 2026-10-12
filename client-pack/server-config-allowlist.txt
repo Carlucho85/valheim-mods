@@ -1,4 +1,4 @@
 # One path relative to BepInEx/config per line.
 # Add only client-safe settings that should be distributed with the modpack.
 # Review every file for passwords, tokens, private addresses, and server-only settings.
-# Quick Connect configuration is never allowed in the client package.
+# Do not allowlist QuickConnect credentials or server-only configuration.
