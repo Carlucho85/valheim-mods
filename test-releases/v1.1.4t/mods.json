@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.1.4t",
+  "base": "v1.1.2",
+  "includes": [
+    "v1.1.1t",
+    "v1.1.3t"
+  ],
+  "excludes": [
+    "UseEquipmentInWater"
+  ],
+  "channel": "test",
+  "description": "Tercera prueba: segunda mitad de los mods que faltan (mas delicados) sobre v1.1.3t.",
+  "mods": [
+    {
+      "owner": "ValMedia",
+      "name": "OOD_LIB",
+      "version": "1.2.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/ValMedia/OOD_LIB/",
+      "notes": "Libreria de OdinOnDemand; necesaria en servidor y cliente.",
+      "sha256": "eca24d42cee10db6a905a7f94184aeab32c1efd29599d15fad847c813e33aeeb"
+    },
+    {
+      "owner": "ValMedia",
+      "name": "OdinOnDemand",
+      "version": "1.3.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/ValMedia/OdinOnDemand/",
+      "notes": "Reproductor de musica. Requiere OOD_LIB, Jotunn y JsonDotNET.",
+      "sha256": "3d949b539367251c49f6e18c04c76fa4a372b0d9d38d9738de1bca8d57c47399"
+    },
+    {
+      "owner": "The_Bees_Decree",
+      "name": "VALKEA",
+      "version": "3.0.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/VALKEA/",
+      "notes": "Muebles y decoracion. Pide Jotunn 2.21.3; se usa el Jotunn ya instalado.",
+      "sha256": "4b9b4189eaf0196f5191f84df13b36195b8d11949ea5aa1f2e143c00947611af"
+    },
+    {
+      "owner": "The_Bees_Decree",
+      "name": "Distant_Dynasties",
+      "version": "3.0.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/Distant_Dynasties/",
+      "notes": "Piezas de construccion. Pide Jotunn 2.21.3.",
+      "sha256": "1e2ba16e94cbd601aa3012c035c44f5ae2c25aa92aeb3198ac78499253df27ac"
+    },
+    {
+      "owner": "Erkle64",
+      "name": "Plateautem",
+      "version": "0.4.3",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Erkle64/Plateautem/",
+      "notes": "Terreno plano para construir.",
+      "sha256": "74c93c94554ed5c2d9023fd421de6683caa7f0d639a8457413ae7c0165336542"
+    },
+    {
+      "owner": "Marlthon",
+      "name": "TheFisher",
+      "version": "0.3.9",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Marlthon/TheFisher/",
+      "notes": "Pesca.",
+      "sha256": "f2e5f03a7a2e74e26b2a7caa1d9789a66e119a7a8c18f843d910e38094d1d396"
+    },
+    {
+      "owner": "RustyMods",
+      "name": "Almanac",
+      "version": "3.8.1",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/RustyMods/Almanac/",
+      "notes": "Requiere YamlDotNet.",
+      "sha256": "33ad8794b814a8f3b21d9b99d339cb5c7aca6de8dc8e8a3a3401979303842166"
+    }
+  ]
+}
