@@ -22,6 +22,8 @@ Incluidas en AKH Plugins (Translations/<Idioma>/valheimraft.json, con el espanol
 
 ## v1.1.3t (prueba)
 
+- AKH Plugins 1.1.4: configs `vapok.mods.{adventurebackpacks,dooropenerbruh,shieldmebruh}.cfg` con `Show Splash on Startup = false` y `Enable Anonymous Telemetry = false` (quita el popup de Vapok en todos los clientes).
+
 | Mod | Texto visible | Estado |
 |---|---|---|
 | DarwinAwards 1.0.6 | Mensajes de muerte | **Descartado de la prueba:** su ServerSync interno falla con el Valheim actual (`MissingFieldException: ZRoutedRpc.Everybody`) y el mod no arranca. La traduccion ya hecha esta guardada en `test-releases/v1.1.3t/descartados/AwardCategories.es.yml`. |

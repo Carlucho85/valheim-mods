@@ -5,6 +5,9 @@
   "includes": [
     "v1.1.1t"
   ],
+  "excludes": [
+    "UseEquipmentInWater"
+  ],
   "channel": "test",
   "description": "Segunda prueba: 5 mods sencillos (mitad 1 de 2 de los que faltan) sobre la estable 1.1.2. DarwinAwards se descarto por incompatibilidad.",
   "mods": [

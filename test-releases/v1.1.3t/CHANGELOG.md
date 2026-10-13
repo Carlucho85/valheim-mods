@@ -1,6 +1,6 @@
 ## Akai Hoshi v1.1.3t (PRUEBAS - pendiente de OK)
 
-Base: v1.1.2 estable (52 plugins) + 5 mods nuevos = 57 plugins. AKH Plugins 1.1.3.
+Base: v1.1.2 estable (52 plugins) + 5 mods nuevos - UseEquipmentInWater = 56 plugins. AKH Plugins 1.1.4.
 
 ### Mods nuevos (5)
 
@@ -13,6 +13,8 @@ Base: v1.1.2 estable (52 plugins) + 5 mods nuevos = 57 plugins. AKH Plugins 1.1.
 | [ComfySigns](https://thunderstore.io/c/valheim/p/ComfyMods/ComfySigns/) (ComfyMods) | 1.12.0 | Solo cliente |
 
 ### Descartado
+- **UseEquipmentInWater 0.2.4**: retirado del cliente. Crea un `StackTrace` en cada llamada a `Character.IsSwimming` dentro del agua y BetterDiving la llama muchas veces por frame, lo que dejaba el juego a ~1 FPS al entrar al agua.
+- **Popup de Vapok** (Adventure Backpacks, DoorOpenerBruh, Shield Me Bruh!): desactivado junto con su telemetria mediante configs en AKH Plugins 1.1.4.
 - **DarwinAwards 1.0.6** (Smoothbrain): incompatible con el Valheim actual (su ServerSync interno falla con `MissingFieldException: ZRoutedRpc.Everybody` y el mod no arranca). Queda fuera; la traduccion de sus mensajes de muerte esta guardada para cuando haya una version compatible.
 
 ### Traducciones (AKH Plugins)

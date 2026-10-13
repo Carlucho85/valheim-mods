@@ -114,6 +114,8 @@ def main() -> int:
     inherited = []
     for previous in manifest.get("includes", []):
         inherited += json.loads((ROOT / "test-releases" / previous / "mods.json").read_text(encoding="utf-8"))["mods"]
+    excluded = set(manifest.get("excludes", []))
+    inherited = [m for m in inherited if m["name"] not in excluded]
     for mod in inherited + manifest["mods"]:
         is_new = mod in manifest["mods"]
         if mod["side"] not in SIDES:
