@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   build-launcher:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

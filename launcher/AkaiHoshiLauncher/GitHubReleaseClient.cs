@@ -12,20 +12,47 @@ public sealed class GitHubReleaseClient
         "https://api.github.com/repos/Carlucho85/valheim-mods/releases/latest";
     private static readonly HttpClient Http = CreateClient();
 
-    public async Task<(GitHubRelease Release, ClientReleaseManifest Manifest)> GetLatestAsync(
+    public Task<(GitHubRelease Release, ClientReleaseManifest Manifest)> GetLatestAsync(
+        CancellationToken cancellationToken) =>
+        GetAsync(LatestReleaseUrl, allowPrerelease: false, expectedTag: null, cancellationToken);
+
+    public Task<(GitHubRelease Release, ClientReleaseManifest Manifest)> GetByTagAsync(
+        string version,
+        CancellationToken cancellationToken)
+    {
+        string tag = version.Trim();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(tag, @"^v?\d+\.\d+\.\d+t\d*$"))
+            throw new InvalidDataException("La versión de pruebas debe tener el formato 1.1.1t.");
+        if (!tag.StartsWith('v'))
+            tag = "v" + tag;
+        return GetAsync(
+            $"https://api.github.com/repos/Carlucho85/valheim-mods/releases/tags/{tag}",
+            allowPrerelease: true,
+            expectedTag: tag,
+            cancellationToken);
+    }
+
+    private async Task<(GitHubRelease Release, ClientReleaseManifest Manifest)> GetAsync(
+        string url,
+        bool allowPrerelease,
+        string? expectedTag,
         CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await Http.GetAsync(
-            LatestReleaseUrl,
+            url,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound && expectedTag is not null)
+            throw new InvalidDataException($"No existe la versión de pruebas {expectedTag}.");
         response.EnsureSuccessStatusCode();
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         GitHubRelease? release = await JsonSerializer.DeserializeAsync<GitHubRelease>(
             stream,
             cancellationToken: cancellationToken);
-        if (release is null || release.Draft || release.Prerelease || string.IsNullOrWhiteSpace(release.TagName))
-            throw new InvalidDataException("GitHub no devolvió una versión estable válida del modpack.");
+        if (release is null || release.Draft || (release.Prerelease && !allowPrerelease)
+            || string.IsNullOrWhiteSpace(release.TagName)
+            || (expectedTag is not null && release.TagName != expectedTag))
+            throw new InvalidDataException("GitHub no devolvió una versión válida del modpack.");
 
         GitHubAsset manifestAsset = FindAsset(release, "client-manifest.json");
         using HttpResponseMessage manifestResponse = await Http.GetAsync(

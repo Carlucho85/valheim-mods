@@ -20,12 +20,28 @@ public partial class MainWindow : Window
         InitializeComponent();
         _installService = new InstallService(_releaseClient);
         _state = SettingsStore.Load();
+#if TEST_CHANNEL
+        Title = "AKH TestClient | Akai Hoshi (pruebas)";
+        TestVersionPanel.Visibility = Visibility.Visible;
+        TestVersionBox.Text = _state.InstalledVersion.TrimStart('v');
+#endif
+    }
+
+    private async void TestVersionBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+            await RefreshReleaseAsync();
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         string[] arguments = Environment.GetCommandLineArgs();
         int installArgument = Array.IndexOf(arguments, "--install");
+#if TEST_CHANNEL
+        int versionArgument = Array.IndexOf(arguments, "--version");
+        if (versionArgument >= 0 && versionArgument + 1 < arguments.Length)
+            TestVersionBox.Text = arguments[versionArgument + 1];
+#endif
         string? gamePath = _state.GamePath;
         if (installArgument >= 0 && installArgument + 1 < arguments.Length)
             gamePath = arguments[installArgument + 1];
@@ -51,18 +67,42 @@ public partial class MainWindow : Window
         if (_busy)
             return;
         SetBusy(true);
+#if TEST_CHANNEL
+        _release = null;
+        _manifest = null;
+        if (string.IsNullOrWhiteSpace(TestVersionBox.Text))
+        {
+            ReleaseStatusText.Text = "Escribe la versión de pruebas (por ejemplo 1.1.1t)";
+            StatusText.Text = "Indica la versión que te pasó el equipo y pulsa Buscar.";
+            SetBusy(false);
+            return;
+        }
+        StatusText.Text = $"Buscando la versión de pruebas {TestVersionBox.Text.Trim()}…";
+#else
         StatusText.Text = "Comprobando la última versión publicada…";
+#endif
         try
         {
+#if TEST_CHANNEL
+            (_release, _manifest) = await _releaseClient.GetByTagAsync(TestVersionBox.Text, CancellationToken.None);
+#else
             (_release, _manifest) = await _releaseClient.GetLatestAsync(CancellationToken.None);
+#endif
             string installed = _state.InstalledVersion;
             bool current = string.Equals(installed, _manifest.Version, StringComparison.OrdinalIgnoreCase);
+#if TEST_CHANNEL
+            ReleaseStatusText.Text = current
+                ? $"Ya tienes la versión de pruebas {_manifest.Version}"
+                : $"Se instalará la versión de pruebas {_manifest.Version}";
+            StatusText.Text = "Al instalar se purgará cualquier instalación de mods anterior (se guarda una copia en AKH-purged).";
+#else
             ReleaseStatusText.Text = current
                 ? $"Ya tienes la versión {_manifest.Version}"
                 : $"Versión disponible: {_manifest.Version}";
             StatusText.Text = current
                 ? "El modpack está actualizado."
                 : "La actualización se descargará desde GitHub y se verificará antes de instalar.";
+#endif
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or TaskCanceledException)
         {
@@ -85,22 +125,32 @@ public partial class MainWindow : Window
             if (!SteamLocator.IsValheimDirectory(_state.GamePath))
                 return;
         }
+#if TEST_CHANNEL
+        await RefreshReleaseAsync();
+        if (_release is null || _manifest is null)
+            return;
+#else
         if (_release is null || _manifest is null)
         {
             await RefreshReleaseAsync();
             if (_release is null || _manifest is null)
                 return;
         }
+#endif
 
         if (!IsAdministrator())
         {
             try
             {
                 string executable = Environment.ProcessPath
-                    ?? throw new InvalidOperationException("No se pudo localizar AkaiHoshiLauncher.exe.");
+                    ?? throw new InvalidOperationException("No se pudo localizar el launcher.");
                 using Process? elevated = Process.Start(new ProcessStartInfo(executable)
                 {
+#if TEST_CHANNEL
+                    Arguments = $"--install \"{_state.GamePath}\" --version {_manifest.Version.TrimStart('v')}",
+#else
                     Arguments = $"--install \"{_state.GamePath}\"",
+#endif
                     UseShellExecute = true,
                     Verb = "runas"
                 });

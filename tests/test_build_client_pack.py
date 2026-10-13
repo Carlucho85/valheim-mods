@@ -290,6 +290,24 @@ class ClientPackTests(unittest.TestCase):
                 manifest["archiveSha256"],
             )
             with zipfile.ZipFile(output_dir / build_client_pack.PACKAGE_NAME) as package:
+                self.assertIn("BepInEx/plugins/AKHPlugins/manifest.json", package.namelist())
+                akh_manifest = json.loads(
+                    package.read("BepInEx/plugins/AKHPlugins/manifest.json")
+                )
+                self.assertEqual(akh_manifest["name"], "AKH Plugins")
+                self.assertTrue(akh_manifest["private"])
+                self.assertTrue(
+                    any(
+                        entry["target"]
+                        == "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
+                        and entry["mode"] == "merge-json"
+                        for entry in akh_manifest["files"]
+                    )
+                )
+                self.assertIn(
+                    "BepInEx/plugins/AKHPlugins/customizations/BepInEx/plugins/AugaLite/translations.json",
+                    package.namelist(),
+                )
                 backpack = json.loads(
                     package.read(
                         "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
@@ -391,6 +409,101 @@ class ClientPackTests(unittest.TestCase):
             (root / "QuickConnect" / "quick_connect_servers.cfg").write_bytes(b"secret")
             overrides = build_client_pack.load_plugin_overrides(root)
             self.assertEqual(overrides, {})
+
+    def test_rejects_sensitive_files_in_akh_plugins_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            secret = root / "QuickConnect" / "quick_connect_servers.cfg"
+            secret.parent.mkdir(parents=True)
+            secret.write_text("password=redacted", encoding="utf-8")
+            with patch.object(build_client_pack, "OVERRIDES", root):
+                with self.assertRaisesRegex(
+                    build_client_pack.PackageError,
+                    "Sensitive or server-only file",
+                ):
+                    build_client_pack.load_akh_plugin_bundle()
+
+    def test_akh_plugins_contains_menu_customization_and_translations(self) -> None:
+        metadata, customizations, runtime = build_client_pack.load_akh_plugin_bundle()
+        self.assertEqual(metadata["name"], "AKH Plugins")
+        self.assertIn("BepInEx/config/ValheimMenu/ValheimMenu.cfg", customizations)
+        self.assertIn("BepInEx/config/ValheimMenu/logo.png", customizations)
+        self.assertIn("BepInEx/plugins/AugaLite/translations.json", customizations)
+        self.assertEqual(runtime, {})
+        self.assertTrue(
+            customizations["BepInEx/config/ValheimMenu/logo.png"].startswith(b"\x89PNG\r\n\x1a\n")
+        )
+        self.assertIn(
+            "Title = Akai Hoshi: Changarök".encode(),
+            customizations["BepInEx/config/ValheimMenu/ValheimMenu.cfg"],
+        )
+
+    def test_akh_runtime_files_are_packaged_as_own_plugin(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(
+                root, {"plugins/Other/Other.dll": b"plugin"}
+            )
+            loader, loader_hash = self.make_loader(root)
+            loader_info = root / "bepinex-pack.json"
+            loader_info.write_text(
+                json.dumps(
+                    {
+                        "version": "test",
+                        "url": "not-used",
+                        "sha256": loader_hash,
+                        "archiveName": "BepInExPack_Valheim-test.zip",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            manifest_path = root / "akh-manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "name": "AKH Plugins",
+                        "version": "1.1.0",
+                        "private": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            customizations = root / "customizations"
+            customizations.mkdir()
+            runtime = root / "runtime"
+            runtime.mkdir()
+            (runtime / "AKHPlugins.dll").write_bytes(b"private plugin")
+            with (
+                patch.object(build_client_pack, "AKH_PLUGIN_RUNTIME", runtime),
+                patch.object(build_client_pack, "AKH_PLUGIN_MANIFEST", manifest_path),
+                patch.object(build_client_pack, "OVERRIDES", customizations),
+                patch.object(build_client_pack, "LOADER_INFO", loader_info),
+            ):
+                output = root / "out"
+                build_client_pack.write_package(
+                    source, output, "v1.2.3-beta.1", loader
+                )
+            with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
+                self.assertEqual(
+                    package.read(
+                        "BepInEx/plugins/AKHPlugins/AKHPlugins.dll"
+                    ),
+                    b"private plugin",
+                )
+                generated_manifest = json.loads(
+                    package.read("BepInEx/plugins/AKHPlugins/manifest.json")
+                )
+                self.assertEqual(generated_manifest["version"], "1.2.3-beta.1")
+                self.assertEqual(
+                    generated_manifest["files"],
+                    [
+                        {
+                            "source": "runtime/AKHPlugins.dll",
+                            "target": "BepInEx/plugins/AKHPlugins/AKHPlugins.dll",
+                            "mode": "install",
+                        }
+                    ],
+                )
 
 
 if __name__ == "__main__":

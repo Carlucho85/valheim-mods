@@ -10,8 +10,14 @@ public static class SettingsStore
         PropertyNameCaseInsensitive = true
     };
 
+#if TEST_CHANNEL
+    private const string DataFolderName = "AkaiHoshiTest";
+#else
+    private const string DataFolderName = "AkaiHoshi";
+#endif
+
     public static string DataDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AkaiHoshi");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), DataFolderName);
 
     public static string StatePath => Path.Combine(DataDirectory, "launcher-state.json");
 

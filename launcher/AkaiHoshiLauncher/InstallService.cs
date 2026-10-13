@@ -53,7 +53,9 @@ public sealed class InstallService
         int preserved = 0;
         bool installedLoader = false;
         string? persistentBackup = null;
-
+#if TEST_CHANNEL
+        string? purgeBackup = null;
+#endif
         try
         {
             progress.Report(new InstallProgress("Descargando el modpack desde GitHub…", 3));
@@ -70,6 +72,11 @@ public sealed class InstallService
             PackageManifest packageManifest = await Task.Run(
                 () => ExtractAndVerifyPackage(packageArchive, packageStage, releaseManifest.Version),
                 cancellationToken);
+
+#if TEST_CHANNEL
+            progress.Report(new InstallProgress("Purgando la instalación de mods anterior…", 58));
+            purgeBackup = PurgeExistingInstall(gamePath);
+#endif
 
             var loaderFiles = new List<StagedFile>();
             if (!HasBepInEx(gamePath))
@@ -197,6 +204,9 @@ public sealed class InstallService
             try
             {
                 Rollback(applied);
+#if TEST_CHANNEL
+                RestorePurge(gamePath, purgeBackup);
+#endif
             }
             catch (Exception rollbackError)
             {
@@ -216,6 +226,58 @@ public sealed class InstallService
                 Directory.Delete(persistentBackup);
         }
     }
+
+#if TEST_CHANNEL
+    private static readonly string[] PurgedEntries =
+        ["BepInEx", "winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt", "doorstop_libs"];
+
+    // Moves any BepInEx/mod installation aside (same volume, so it is instant) and keeps only the latest copy.
+    private static string? PurgeExistingInstall(string gamePath)
+    {
+        string root = Path.Combine(gamePath, "AKH-purged");
+        string[] present = PurgedEntries.Where(name =>
+            File.Exists(Path.Combine(gamePath, name)) || Directory.Exists(Path.Combine(gamePath, name))).ToArray();
+        if (present.Length == 0)
+            return null;
+
+        if (Directory.Exists(root))
+            Directory.Delete(root, recursive: true);
+        string backup = Path.Combine(root, DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss"));
+        Directory.CreateDirectory(backup);
+        foreach (string name in present)
+        {
+            string source = Path.Combine(gamePath, name);
+            string target = Path.Combine(backup, name);
+            if (Directory.Exists(source))
+                Directory.Move(source, target);
+            else
+                File.Move(source, target);
+        }
+        return backup;
+    }
+
+    private static void RestorePurge(string gamePath, string? backup)
+    {
+        if (backup is null || !Directory.Exists(backup))
+            return;
+        foreach (string name in PurgedEntries)
+        {
+            string current = Path.Combine(gamePath, name);
+            if (Directory.Exists(current))
+                Directory.Delete(current, recursive: true);
+            else if (File.Exists(current))
+                File.Delete(current);
+        }
+        foreach (string entry in Directory.EnumerateFileSystemEntries(backup))
+        {
+            string target = Path.Combine(gamePath, Path.GetFileName(entry));
+            if (Directory.Exists(entry))
+                Directory.Move(entry, target);
+            else
+                File.Move(entry, target);
+        }
+    }
+#endif
 
     public static bool HasBepInEx(string gamePath) =>
         File.Exists(Path.Combine(gamePath, "BepInEx", "core", "BepInEx.dll"))
