@@ -1,4 +1,4 @@
-ï»¿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -9,8 +9,8 @@
     <AssemblyName>AkaiHoshiLauncher</AssemblyName>
     <Product>Akai Hoshi Valheim</Product>
     <RootNamespace>AkaiHoshiLauncher</RootNamespace>
-    <Description>One-click Valheim mod installer for Akai Hoshi: ChangarÃ¶k.</Description>
-    <Version>1.1.1</Version>
+    <Description>One-click Valheim mod installer for Akai Hoshi: Changarök.</Description>
+    <Version>1.1.3</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\akai-hoshi.ico</ApplicationIcon>
   </PropertyGroup>
@@ -18,7 +18,7 @@
   <PropertyGroup Condition="'$(Channel)' == 'Test'">
     <AssemblyName>AKH-TestClient</AssemblyName>
     <Product>AKH TestClient</Product>
-    <Description>Launcher de pruebas de Akai Hoshi: ChangarÃ¶k (instala versiones de la rama de pruebas).</Description>
+    <Description>Launcher de pruebas de Akai Hoshi: Changarök (instala versiones de la rama de pruebas).</Description>
     <DefineConstants>$(DefineConstants);TEST_CHANNEL</DefineConstants>
   </PropertyGroup>
 

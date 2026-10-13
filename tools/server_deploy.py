@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sftp_recon
 
 REMOTE_PLUGINS = "steamcmd/valheim/BepInEx/plugins"
+REMOTE_CONFIG = "steamcmd/valheim/BepInEx/config"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -57,6 +58,18 @@ def main():
                 if sftp.stat(target).st_size != file.stat().st_size:
                     raise SystemExit(f"size mismatch {target}")
                 print(f"uploaded {target}")
+        config_stage = ROOT / ".artifacts" / f"test-{version}" / "stage" / "server-config"
+        overrides = ROOT / "client-pack" / "AKHPlugins" / "customizations" / "BepInEx" / "config"
+        if not remove and config_stage.exists():
+            for file in sorted(p for p in config_stage.rglob("*") if p.is_file()):
+                relative = file.relative_to(config_stage)
+                source = overrides / relative if (overrides / relative).exists() else file
+                target = f"{REMOTE_CONFIG}/{relative.as_posix()}"
+                mkdirs(sftp, target.rsplit("/", 1)[0])
+                sftp.put(str(source), target)
+                if sftp.stat(target).st_size != source.stat().st_size:
+                    raise SystemExit(f"size mismatch {target}")
+                print(f"uploaded {target} (from {source.name} in {source.parent.name})")
     finally:
         sftp.close()
         transport.close()

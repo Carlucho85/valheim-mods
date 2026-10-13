@@ -68,6 +68,9 @@ def runtime_files(mod: dict, data: bytes, work: Path) -> dict[str, bytes]:
             if [part.lower() for part in parts[: len(prefix)]] == [p.lower() for p in prefix]:
                 parts = parts[len(prefix) :]
                 break
+        if parts and parts[0].lower() == "config" and mod.get("configs") == "extract":
+            files["@" + "/".join(parts)] = archive.read(info)
+            continue
         if parts and parts[0].lower() in {"config", "patchers", "monomod", "core"}:
             raise TestReleaseError(f"{mod['name']} ships {parts[0]}/; review it manually")
         if not parts:
@@ -106,14 +109,27 @@ def main() -> int:
     client_only = out / "stage" / "client-only-plugins"
     merged = out / "stage" / "server-merged"
 
-    for mod in manifest["mods"]:
+    # Mods of earlier test releases (not yet in the base snapshot) are part of the merged tree
+    # but are not uploaded again: the server already has them.
+    inherited = []
+    for previous in manifest.get("includes", []):
+        inherited += json.loads((ROOT / "test-releases" / previous / "mods.json").read_text(encoding="utf-8"))["mods"]
+    excluded = set(manifest.get("excludes", []))
+    inherited = [m for m in inherited if m["name"] not in excluded]
+    for mod in inherited + manifest["mods"]:
+        is_new = mod in manifest["mods"]
         if mod["side"] not in SIDES:
             raise TestReleaseError(f"Invalid side for {mod['name']}")
         data = fetch_mod(mod, cache)
         zip_path = cache / f"{mod['owner']}-{mod['name']}-{mod['version']}.zip"
         files = runtime_files(mod, data, zip_path)
+        config_files = {k[1:]: v for k, v in files.items() if k.startswith("@")}
+        files = {k: v for k, v in files.items() if not k.startswith("@")}
+        if config_files and is_new:
+            write_files(out / "stage" / "server-config", {k.split("/", 1)[1]: v for k, v in config_files.items()})
         if mod["side"] in {"both", "server"}:
-            write_files(server_upload / mod["name"], files)
+            if is_new:
+                write_files(server_upload / mod["name"], files)
             write_files(merged / "BepInEx" / "plugins" / mod["name"], files)
         if mod["side"] == "client":
             write_files(client_only / mod["name"], files)
