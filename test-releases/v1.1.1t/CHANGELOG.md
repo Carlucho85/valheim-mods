@@ -1,4 +1,4 @@
-## Akai Hoshi v1.1.1t (PRUEBAS)
+## Akai Hoshi v1.1.1t (PRUEBAS - APROBADA)
 
 Base: v1.1.0 estable. Incluye AKH Plugins (sin cambios respecto a 1.1.0).
 
@@ -20,5 +20,8 @@ Base: v1.1.0 estable. Incluye AKH Plugins (sin cambios respecto a 1.1.0).
 - StaminaExtended: usa textos de Valheim ya traducidos.
 - SkilledCarryWeight: 4 textos del carro siguen en inglés (codificados en la DLL); pendiente de una futura DLL de AKH Plugins.
 
-### Cómo probar
+### Resultado de la prueba
+Instalacion con AKH-TestClient correcta, servidor estable y acceso verificado por el equipo. OK dado el 2026-10-13.
+
+### Como probar
 Descarga AKH-TestClient, escribe `1.1.1t` y pulsa Instalar.
