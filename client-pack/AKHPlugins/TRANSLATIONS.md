@@ -12,7 +12,6 @@ propios y términos de Valheim se mantienen.
 | InstantMonsterDrop 1.0.2 | Solo configuración | Nada que traducir. |
 | NoStamCosts 0.1.2 | Solo configuración | Nada que traducir. |
 | NoTreeStump 1.0.3 | Ninguno | Nada que traducir. |
-| UseEquipmentInWater 0.2.4 | Ninguno | Nada que traducir. |
 
 Las descripciones de las opciones de configuración (`.cfg`) se mantienen en
 inglés: solo las ve quien edita los ajustes, no los jugadores en partida.

@@ -1,0 +1,9 @@
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\.artifacts\ueiwfix\AKH_UEIWFix.deps.json
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\.artifacts\ueiwfix\AKH_UEIWFix.dll
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\.artifacts\ueiwfix\AKH_UEIWFix.pdb
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.csproj.AssemblyReference.cache
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.GeneratedMSBuildEditorConfig.editorconfig
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.csproj.CoreCompileInputs.cache
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.sourcelink.json
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.dll
+C:\Software\Github Clone\copilot-worktrees\valheim-mods\carlucho85-musical-spoon\client-pack\fixes\AKH_UEIWFix\obj\Release\netstandard2.1\AKH_UEIWFix.pdb
