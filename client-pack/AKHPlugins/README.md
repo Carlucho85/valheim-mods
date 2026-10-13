@@ -8,7 +8,11 @@ instead of editing or scattering them among the upstream mod files:
   files. Preserve their relative `BepInEx/` paths; the packager installs them
   both as AKH-owned source payload and at the destination expected by Valheim
   or the relevant mod.
-- `src/` is reserved for source code of an AKH-owned BepInEx plugin.
+- `src/` contains the source of AKH-owned BepInEx plugins. `src/MasterKeybind`
+  is **Master Keybind**: it lists every Valheim and mod keybind under
+  *Mod configs* and applies the player's choices. Its config
+  (`BepInEx/config/akh.masterkeybind.cfg`) is never shipped in the package and
+  the launcher preserves it across clean installs, so keys survive updates.
 - `runtime/` contains the built plugin assembly and any runtime dependencies.
   The packager installs these under `BepInEx/plugins/AKHPlugins/`.
 

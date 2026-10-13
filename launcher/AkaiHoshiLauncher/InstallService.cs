@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -53,9 +53,7 @@ public sealed class InstallService
         int preserved = 0;
         bool installedLoader = false;
         string? persistentBackup = null;
-#if TEST_CHANNEL
         string? purgeBackup = null;
-#endif
         try
         {
             progress.Report(new InstallProgress("Descargando el modpack desde GitHub…", 3));
@@ -73,10 +71,8 @@ public sealed class InstallService
                 () => ExtractAndVerifyPackage(packageArchive, packageStage, releaseManifest.Version),
                 cancellationToken);
 
-#if TEST_CHANNEL
-            progress.Report(new InstallProgress("Purgando la instalación de mods anterior…", 58));
+            progress.Report(new InstallProgress("Instalación limpia: apartando los mods anteriores…", 58));
             purgeBackup = PurgeExistingInstall(gamePath);
-#endif
 
             var loaderFiles = new List<StagedFile>();
             if (!HasBepInEx(gamePath))
@@ -187,6 +183,17 @@ public sealed class InstallService
                 removed++;
             }
 
+            RestoreUserFiles(gamePath, purgeBackup);
+
+            progress.Report(new InstallProgress("Verificando que solo existe esta versión…", 96));
+            VerifyResult verification = await VerifyInstallAsync(
+                gamePath,
+                new LauncherState { GamePath = gamePath, InstalledVersion = releaseManifest.Version, Files = packageManifest.Files },
+                cancellationToken);
+            if (!verification.Ok)
+                throw new InvalidDataException(
+                    "La verificación posterior a la instalación falló:\n" + string.Join("\n", verification.Problems.Take(10)));
+
             progress.Report(new InstallProgress("Guardando la versión instalada…", 98));
             SettingsStore.Save(new LauncherState
             {
@@ -204,9 +211,7 @@ public sealed class InstallService
             try
             {
                 Rollback(applied);
-#if TEST_CHANNEL
                 RestorePurge(gamePath, purgeBackup);
-#endif
             }
             catch (Exception rollbackError)
             {
@@ -227,7 +232,6 @@ public sealed class InstallService
         }
     }
 
-#if TEST_CHANNEL
     private static readonly string[] PurgedEntries =
         ["BepInEx", "winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt", "doorstop_libs"];
 
@@ -277,7 +281,87 @@ public sealed class InstallService
                 File.Move(entry, target);
         }
     }
-#endif
+
+    // Ajustes del jugador que sobreviven a la instalación limpia y nunca viajan en el modpack.
+    private static readonly string[] UserFiles = ["BepInEx/config/akh.masterkeybind.cfg"];
+
+    private static readonly string[] CodeRoots = ["BepInEx/plugins", "BepInEx/patchers", "BepInEx/monomod"];
+    private static readonly string[] CodeExtensions = [".dll", ".exe"];
+
+    private static void RestoreUserFiles(string gamePath, string? backup)
+    {
+        if (backup is null)
+            return;
+        foreach (string relative in UserFiles)
+        {
+            string source = Path.Combine(backup, relative.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(source))
+                continue;
+            string target = SafeCombine(gamePath, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(source, target, overwrite: true);
+        }
+    }
+
+    public sealed record VerifyResult(List<string> Problems)
+    {
+        public bool Ok => Problems.Count == 0;
+    }
+
+    // Comprueba que la instalación coincide exactamente con la versión indicada: ningún mod,
+    // DLL o versión de más, y ninguno de menos ni modificado.
+    public static Task<VerifyResult> VerifyInstallAsync(
+        string gamePath,
+        LauncherState state,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            var problems = new List<string>();
+            if (state.Files.Count == 0 || string.IsNullOrWhiteSpace(state.InstalledVersion))
+            {
+                problems.Add("No hay un modpack instalado.");
+                return new VerifyResult(problems);
+            }
+            if (!HasBepInEx(gamePath))
+                problems.Add("Falta BepInEx o está incompleto.");
+
+            var expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (ManagedFile file in state.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string relative = file.Path.Replace('\\', '/');
+                expected.Add(relative);
+                string destination = SafeCombine(gamePath, relative);
+                if (!File.Exists(destination))
+                {
+                    problems.Add($"Falta: {relative}");
+                    continue;
+                }
+                bool isCode = CodeExtensions.Contains(Path.GetExtension(relative), StringComparer.OrdinalIgnoreCase);
+                if (isCode && (new FileInfo(destination).Length != file.Size
+                    || !string.Equals(HashFile(destination), file.Sha256, StringComparison.OrdinalIgnoreCase)))
+                    problems.Add($"Modificado o de otra versión: {relative}");
+            }
+
+            foreach (string root in CodeRoots)
+            {
+                string directory = SafeCombine(gamePath, root);
+                if (!Directory.Exists(directory))
+                    continue;
+                foreach (string path in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!CodeExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    string relative = Path.GetRelativePath(gamePath, path).Replace('\\', '/');
+                    if (!expected.Contains(relative))
+                        problems.Add($"Sobra (no es de esta versión): {relative}");
+                }
+            }
+            return new VerifyResult(problems);
+        }, cancellationToken);
+    }
 
     public static bool HasBepInEx(string gamePath) =>
         File.Exists(Path.Combine(gamePath, "BepInEx", "core", "BepInEx.dll"))

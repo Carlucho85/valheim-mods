@@ -113,6 +113,37 @@ public partial class MainWindow : Window
         {
             SetBusy(false);
         }
+        await RunVerificationAsync();
+    }
+
+    private async Task RunVerificationAsync()
+    {
+        PlayButton.IsEnabled = false;
+        if (!SteamLocator.IsValheimDirectory(_state.GamePath))
+            return;
+        if (string.IsNullOrWhiteSpace(_state.InstalledVersion))
+        {
+            StatusText.Text = "Pulsa Instalar para instalar el modpack antes de jugar.";
+            return;
+        }
+#if !TEST_CHANNEL
+        if (_manifest is not null
+            && !string.Equals(_state.InstalledVersion, _manifest.Version, StringComparison.OrdinalIgnoreCase))
+        {
+            StatusText.Text = $"Hay una versión nueva ({_manifest.Version}). Pulsa Instalar para actualizar y poder jugar.";
+            return;
+        }
+#endif
+        StatusText.Text = "Verificando los archivos del juego…";
+        InstallService.VerifyResult result = await InstallService.VerifyInstallAsync(
+            _state.GamePath, _state, CancellationToken.None);
+        if (result.Ok)
+        {
+            PlayButton.IsEnabled = true;
+            StatusText.Text = $"Todo verificado: solo está instalada la versión {_state.InstalledVersion}.";
+            return;
+        }
+        StatusText.Text = $"Se detectaron {result.Problems.Count} diferencias con la versión {_state.InstalledVersion}. Pulsa Instalar para repararlo (instalación limpia)." + Environment.NewLine + string.Join(Environment.NewLine, result.Problems.Take(4));
     }
 
     private async void InstallButton_Click(object sender, RoutedEventArgs e)
@@ -245,14 +276,14 @@ public partial class MainWindow : Window
             return;
         }
         SetGamePath(dialog.FolderName);
+        _ = RunVerificationAsync();
     }
 
     private void SetGamePath(string path)
     {
         _state.GamePath = Path.GetFullPath(path);
         InstallPathText.Text = _state.GamePath;
-        PlayButton.IsEnabled = SteamLocator.IsValheimDirectory(path)
-            && !string.IsNullOrWhiteSpace(_state.InstalledVersion);
+        PlayButton.IsEnabled = false;
         try
         {
             SettingsStore.Save(_state);
@@ -263,13 +294,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private void PlayButton_Click(object sender, RoutedEventArgs e)
+    private async void PlayButton_Click(object sender, RoutedEventArgs e)
     {
         if (!SteamLocator.IsValheimDirectory(_state.GamePath))
         {
             StatusText.Text = "Selecciona primero la carpeta de Valheim.";
             return;
         }
+
+        await RunVerificationAsync();
+        if (!PlayButton.IsEnabled)
+            return;
 
         try
         {
