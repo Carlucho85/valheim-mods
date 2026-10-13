@@ -16,7 +16,10 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OVERRIDES = ROOT / "client-pack" / "overrides"
+AKH_PLUGIN_DIR = ROOT / "client-pack" / "AKHPlugins"
+OVERRIDES = AKH_PLUGIN_DIR / "customizations"
+AKH_PLUGIN_RUNTIME = AKH_PLUGIN_DIR / "runtime"
+AKH_PLUGIN_MANIFEST = AKH_PLUGIN_DIR / "manifest.json"
 LOADER_INFO = ROOT / "client-pack" / "bepinex-pack.json"
 README = ROOT / "client-pack" / "README.txt"
 SERVER_CONFIG_ALLOWLIST = ROOT / "client-pack" / "server-config-allowlist.txt"
@@ -327,6 +330,49 @@ def load_overrides() -> tuple[dict[str, bytes], dict[str, dict[str, Any]]]:
     return replacements, merges
 
 
+def load_akh_plugin_bundle() -> tuple[dict[str, Any], dict[str, bytes], dict[str, bytes]]:
+    try:
+        metadata = read_json_bytes(AKH_PLUGIN_MANIFEST.read_bytes(), str(AKH_PLUGIN_MANIFEST))
+    except OSError as exc:
+        raise PackageError(f"Cannot read AKH Plugins metadata {AKH_PLUGIN_MANIFEST}: {exc}") from exc
+    if not isinstance(metadata, dict) or metadata.get("name") != "AKH Plugins":
+        raise PackageError("AKH Plugins manifest must declare the name 'AKH Plugins'.")
+    if not isinstance(metadata.get("version"), str) or not re.fullmatch(
+        r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", metadata["version"]
+    ):
+        raise PackageError("AKH Plugins manifest must declare a semantic version.")
+    if metadata.get("private") is not True:
+        raise PackageError("AKH Plugins manifest must be private.")
+
+    customizations: dict[str, bytes] = {}
+    for source in sorted(OVERRIDES.rglob("*")):
+        if source.is_symlink():
+            raise PackageError(f"Symbolic links are not allowed in AKH Plugins: {source}")
+        if not source.is_file():
+            continue
+        relative = safe_archive_path(source.relative_to(OVERRIDES).as_posix())
+        if is_quick_connect_path(relative) or is_sensitive_plugin_config(relative):
+            raise PackageError(
+                f"Sensitive or server-only file cannot be bundled by AKH Plugins: {relative}"
+            )
+        customizations[relative] = source.read_bytes()
+
+    runtime: dict[str, bytes] = {}
+    if AKH_PLUGIN_RUNTIME.exists():
+        for source in sorted(AKH_PLUGIN_RUNTIME.rglob("*")):
+            if source.is_symlink():
+                raise PackageError(f"Symbolic links are not allowed in AKH Plugins: {source}")
+            if not source.is_file():
+                continue
+            relative = safe_archive_path(source.relative_to(AKH_PLUGIN_RUNTIME).as_posix())
+            if is_quick_connect_path(relative) or is_sensitive_plugin_config(relative):
+                raise PackageError(
+                    f"Sensitive or server-only file cannot be bundled by AKH Plugins: {relative}"
+                )
+            runtime[relative] = source.read_bytes()
+    return metadata, customizations, runtime
+
+
 def load_plugin_overrides(plugin_dir: Path | None) -> dict[str, bytes]:
     if plugin_dir is None:
         return {}
@@ -460,13 +506,14 @@ def write_package(
     config_allowlist: Path = SERVER_CONFIG_ALLOWLIST,
     plugin_override_dir: Path | None = None,
 ) -> dict[str, Any]:
-    if not re.fullmatch(r"v\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version):
-        raise PackageError("Version must be a semantic version tag such as v1.0.0.")
+    if not re.fullmatch(r"v\d+\.\d+\.\d+(?:t\d*|[-+][A-Za-z0-9.-]+)?", version):
+        raise PackageError("Version must be a semantic version tag such as v1.0.0 or a test tag such as v1.1.1t.")
     output_dir.mkdir(parents=True, exist_ok=True)
     if not server_zip.is_file() and not server_zip.is_dir():
         raise PackageError(f"Server plugins ZIP or folder does not exist: {server_zip}")
 
     loader_path, loader_info = get_loader_archive(output_dir, loader_archive)
+    akh_metadata, akh_customizations, akh_runtime = load_akh_plugin_bundle()
     replacements, merges = load_overrides()
     plugin_overrides = load_plugin_overrides(plugin_override_dir)
     server_configs = load_server_configs(server_config_dir, config_allowlist)
@@ -528,6 +575,70 @@ def write_package(
         if output_path.casefold() in used or output_path.casefold() in selected_paths:
             continue
         file_entries.append((zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest()))
+        package_files.append(
+            {"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+        )
+
+    release_akh_metadata = {
+        **akh_metadata,
+        "version": version.removeprefix("v"),
+    }
+    akh_manifest = {
+        **release_akh_metadata,
+        "schemaVersion": 1,
+        "files": [
+            {
+                "source": f"customizations/{relative}",
+                "target": (
+                    relative[: -len(".overrides.json")]
+                    if relative.endswith(".overrides.json")
+                    else relative
+                ),
+                "mode": "merge-json" if relative.endswith(".overrides.json") else "replace",
+            }
+            for relative in sorted(akh_customizations)
+        ]
+        + [
+            {
+                "source": f"runtime/{relative}",
+                "target": f"BepInEx/plugins/AKHPlugins/{relative}",
+                "mode": "install",
+            }
+            for relative in sorted(akh_runtime)
+        ],
+    }
+    akh_manifest_bytes = (
+        json.dumps(akh_manifest, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    akh_manifest_path = "BepInEx/plugins/AKHPlugins/manifest.json"
+    file_entries.append(
+        (
+            zipfile.ZipInfo(akh_manifest_path),
+            akh_manifest_path,
+            akh_manifest_bytes,
+            hashlib.sha256(akh_manifest_bytes).hexdigest(),
+        )
+    )
+    package_files.append(
+        {
+            "path": akh_manifest_path,
+            "sha256": hashlib.sha256(akh_manifest_bytes).hexdigest(),
+            "size": len(akh_manifest_bytes),
+        }
+    )
+    for relative, data in sorted(akh_customizations.items()):
+        output_path = f"BepInEx/plugins/AKHPlugins/customizations/{relative}"
+        file_entries.append(
+            (zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest())
+        )
+        package_files.append(
+            {"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+        )
+    for relative, data in sorted(akh_runtime.items()):
+        output_path = f"BepInEx/plugins/AKHPlugins/{relative}"
+        file_entries.append(
+            (zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest())
+        )
         package_files.append(
             {"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
         )

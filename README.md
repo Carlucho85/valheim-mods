@@ -46,7 +46,7 @@ mismas más `MaxPlayerCount.dll`, que se excluye del paquete cliente.
 `QuickConnect` se omite también. Para las DLL compartidas, el servidor es la
 fuente canónica. En la validación de 1.1 se comparó el resultado contra el
 inventario del cliente. Las localizaciones y el menú personalizado se mantienen
-mediante `client-pack/overrides/`; no se copian configuraciones generales del
+en `client-pack/AKHPlugins/`; no se copian configuraciones generales del
 servidor.
 
 No se detectaron nombres de DLL nuevos respecto al paquete estable 1.0.4.
@@ -57,6 +57,18 @@ AdventureBackpacks, Advize_PlantEasily, AmmoCount, BepInEx.ConfigDrawers,
 DoorOpenerBruh, MinimalStatusEffects y ShieldMeBruh aparecen en carpetas de
 plugins instalados en 1.1, pero ya estaban en `thunderstore/` del paquete
 estable anterior.
+
+Todo cambio propio del modpack —en versiones de prueba o estables— debe
+residir en **AKH Plugins** (`client-pack/AKHPlugins/`): traducciones, artwork,
+configuraciones cliente revisadas y código propio. `customizations/` mantiene
+el contenido instalado en las rutas que esperan Valheim y los mods;
+`src/` y `runtime/` están reservados al código fuente y los binarios del plugin
+AKH. El generador incluye el manifiesto de AKH Plugins en cada paquete y alinea
+su versión con la release. Los archivos de traducción/configuración por sí
+solos son contenido, no código ejecutable; al añadir código se debe compilar
+su DLL en `runtime/` y verificar que se distribuya dentro de
+`BepInEx/plugins/AKHPlugins/`. No se publican credenciales ni configuraciones
+privadas o exclusivas del servidor.
 
 Las copias fuente grandes se guardan con Git LFS. Los assets descargables del
 launcher y del modpack se publican en GitHub Releases.

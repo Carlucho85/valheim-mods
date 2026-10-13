@@ -8,10 +8,18 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>AkaiHoshiLauncher</AssemblyName>
     <Product>Akai Hoshi Valheim</Product>
+    <RootNamespace>AkaiHoshiLauncher</RootNamespace>
     <Description>One-click Valheim mod installer for Akai Hoshi: Changarök.</Description>
     <Version>1.1.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\akai-hoshi.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Channel)' == 'Test'">
+    <AssemblyName>AKH-TestClient</AssemblyName>
+    <Product>AKH TestClient</Product>
+    <Description>Launcher de pruebas de Akai Hoshi: Changarök (instala versiones de la rama de pruebas).</Description>
+    <DefineConstants>$(DefineConstants);TEST_CHANNEL</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

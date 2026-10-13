@@ -74,6 +74,14 @@
                                    Foreground="{StaticResource MutedBrush}" />
                         <TextBlock x:Name="ReleaseStatusText" Text="Buscando la versión más reciente…"
                                    FontSize="15" FontWeight="SemiBold" Margin="0,11,0,0" TextWrapping="Wrap" />
+                        <StackPanel x:Name="TestVersionPanel" Visibility="Collapsed" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock Text="Versión de pruebas:" VerticalAlignment="Center" Margin="0,0,10,0"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <TextBox x:Name="TestVersionBox" Width="120" Padding="6,5" Text="" ToolTip="Por ejemplo 1.1.1t"
+                                     KeyDown="TestVersionBox_KeyDown" />
+                            <Button x:Name="TestLookupButton" Content="Buscar" Margin="8,0,0,0" Padding="12,5"
+                                    Background="{StaticResource PanelLightBrush}" Click="RefreshButton_Click" />
+                        </StackPanel>
                         <TextBlock x:Name="InstallPathText" Text="Valheim aún no está localizado"
                                    FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,7,0,0"
                                    TextTrimming="CharacterEllipsis" />

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.1.1t",
+  "base": "v1.1.0",
+  "channel": "test",
+  "description": "Primera prueba: 8 mods sencillos sobre la base estable 1.1.0.",
+  "mods": [
+    {
+      "owner": "shudnal",
+      "name": "HipLantern",
+      "version": "1.1.13",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/shudnal/HipLantern/",
+      "notes": "Debe estar en el servidor (config sincronizada con ConditionalConfigSync). Español incluido en la DLL. Usa un slot propio; puede interactuar con EquipmentAndQuickSlots.",
+      "sha256": "5a5eb09b002926eee75c9badef1ef60dcea3dced326950e9d870221ce4654586"
+    },
+    {
+      "owner": "shudnal",
+      "name": "StaminaExtended",
+      "version": "1.0.11",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/shudnal/StaminaExtended/",
+      "notes": "Config sincronizada con ConditionalConfigSync. Los textos usan tokens vanilla ya traducidos.",
+      "sha256": "34e4ff8078705bf938c5fca1e3641e57bb4129a4b31b7791db503a8cf0e92d3f"
+    },
+    {
+      "owner": "DaiMinhTri",
+      "name": "SkilledCarryWeight",
+      "version": "1.4.3",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/DaiMinhTri/SkilledCarryWeight/",
+      "notes": "Funciona solo en cliente; en el servidor fuerza la configuración (ServerSync embebido). Textos del carro codificados en inglés.",
+      "sha256": "7506221443ddf97f725628437e7396a945b3fefd3f3c632388d232ab91e882a5"
+    },
+    {
+      "owner": "bonesbro",
+      "name": "FloorsAreRoofs",
+      "version": "2.0.2",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/bonesbro/FloorsAreRoofs/",
+      "notes": "Depende de Jotunn (ya instalado). El orden de carga lo resuelve BepInDependency.",
+      "sha256": "7527eac042604283eec6ed84a97110ab49a4bc203d1ecdad5a7ef3bdbfebe026"
+    },
+    {
+      "owner": "MahLanna",
+      "name": "InstantMonsterDrop",
+      "version": "1.0.2",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/MahLanna/InstantMonsterDrop/",
+      "notes": "Sin información de lado; se instala en ambos por seguridad.",
+      "sha256": "2dd19a3eb18ac80987aa0c756106d846044e8c75fc46638a5dc4bea9a5a2ee03"
+    },
+    {
+      "owner": "BasilPanda",
+      "name": "NoStamCosts",
+      "version": "0.1.2",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/BasilPanda/NoStamCosts/",
+      "notes": "Mod antiguo (2021). La estamina se calcula en el cliente.",
+      "sha256": "10ced03f8d3f28c2a04498a7afa7e784188122e6a7a7df34277b230a519e864f"
+    },
+    {
+      "owner": "blacks7ar",
+      "name": "NoTreeStump",
+      "version": "1.0.3",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/blacks7ar/NoTreeStump/",
+      "notes": "El autor indica que es solo de cliente.",
+      "sha256": "b0c4bb3a10cf0c11503dcd9f49db1d65662c430c6c66cc9876f142a9fc38c3e3"
+    },
+    {
+      "owner": "LVH-IT",
+      "name": "UseEquipmentInWater",
+      "version": "0.2.4",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/LVH-IT/UseEquipmentInWater/",
+      "notes": "Solo cliente. La configuración está rota según el autor: todos los objetos se pueden usar en el agua.",
+      "sha256": "228792e923db7bb060690a7f66265208bfe91d22f9b5720d8975c0375c3d0b42"
+    }
+  ]
+}
