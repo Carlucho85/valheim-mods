@@ -1,0 +1,67 @@
+# Puedes anadir tus propios textos aqui.
+# No, no puedes anadir tus propias categorias.
+# No uses textos muy largos.
+
+general:
+  - "{player} tuvo una muerte poco espectacular."
+  - "{player} ha sido ascendido a 'jugador muerto'!"
+
+death by fire:
+  - "{player} esta crujiente ahora."
+  - "{player} eligio ser cremado."
+  - "{player} es un gran fan de la Antorcha Humana."
+
+death by poison:
+  - "{player} tomo el te con una serpiente."
+  - "{player} se puso valiente, luego verde y luego muerto."
+
+death by frost:
+  - "{player} se convirtio en un carambano."
+  - "{player} nunca mas se quejara del calor."
+
+death by lightning:
+  - "{player} se ha quedado electrizado."
+  - "{player} ahora es ceniza, gracias a un rayo."
+  - "{player} recibio una descarga. Brzzz!"
+
+death by elemental:
+  - "{player} desafio a los elementos y perdio."
+
+death by tree:
+  - "{player} olvido gritar 'Arbol va!' y ahora paga las consecuencias."
+  - "{player} se enfrento al jefe arbol, pero perdio."
+
+death by pierce:
+  - "{player} conocio al supertaladro: {enemy}!"
+  - "{player} se hizo un nuevo piercing. O dos. O cien."
+
+death by slash:
+  - "{player} quedo partido en dos."
+  - "{player} murio, aunque solo era un aranazo."
+
+death by blunt:
+  - "{player} recibio un buen golpe en la cabeza de {enemy}."
+  - "{player} esta hecho polvo hoy."
+
+death by physical:
+  - "{player} desafio a {enemy} y quedo segundo."
+
+death by gravity:
+  - "{player} descubrio la gravedad. Hurra!"
+  - "{player} olvido frenar antes de aterrizar."
+
+death by drowning:
+  - "{player} ya no tiene sed."
+  - "{player} quiere ser un pez, al parecer."
+  - "{player} vive ahora en una pina bajo el mar."
+
+death by player:
+  - "{player} quiso abrazar a {enemy} y encontro la muerte."
+  - "{player} quiso hacer nuevos amigos, pero se llevo una decepcion."
+
+death by creature:
+  - "{player} esta mas muerto que un Draugr, gracias a {enemy}."
+
+death by boss:
+  - "{player} aprendio que {enemy} es quien manda por aqui."
+  - "{player} intento mandar a {enemy} y lo pago caro."

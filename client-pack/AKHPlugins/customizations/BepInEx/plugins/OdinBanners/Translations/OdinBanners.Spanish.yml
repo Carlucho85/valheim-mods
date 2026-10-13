@@ -1,0 +1,113 @@
+# Banners
+## Nombres y descripción
+
+piece_rae_banner_wall_mount: "Soporte de pared"
+piece_rae_banner_wall_mount_description: "Soporte de pared para estandartes"
+
+piece_rae_banner_wall_mount_big: "Soporte de pared grande"
+piece_rae_banner_wall_mount_big_description: "Soporte de pared para estandartes grandes"
+
+piece_rae_ob_banner_1: "Estandarte de la Casa Tyrell"
+piece_rae_ob_banner_1_description: "Estandarte"
+piece_rae_ob_banner_1_big: "Estandarte grande de la Casa Tyrell"
+piece_rae_ob_banner_1_big_description: "Estandarte"
+
+piece_rae_ob_banner_2: "Estandarte de la Casa Greyjoy"
+piece_rae_ob_banner_2_description: "Estandarte"
+piece_rae_ob_banner_2_big: "Estandarte grande de la Casa Greyjoy"
+piece_rae_ob_banner_2_big_description: "Estandarte"
+
+piece_rae_ob_banner_3: "Estandarte del Clan de Odín"
+piece_rae_ob_banner_3_description: "¡Únete a nuestro equipo de OdinPlus!"
+piece_rae_ob_banner_3_big: "Estandarte grande del Clan de Odín"
+piece_rae_ob_banner_3_big_description: "¡Únete a nuestro equipo de OdinPlus!"
+
+piece_rae_ob_banner_4: "Estandarte de la Casa Stark"
+piece_rae_ob_banner_4_description: "Estandarte"
+piece_rae_ob_banner_4_big: "Estandarte grande de la Casa Stark"
+piece_rae_ob_banner_4_big_description: "Estandarte"
+
+piece_rae_ob_banner_5: "Estandarte de la Casa Targaryen"
+piece_rae_ob_banner_5_description: "Estandarte"
+piece_rae_ob_banner_5_big: "Estandarte grande de la Casa Targaryen"
+piece_rae_ob_banner_5_big_description: "Estandarte"
+
+piece_rae_ob_banner_6: "Estandarte de la Casa Tully"
+piece_rae_ob_banner_6_description: "Estandarte"
+piece_rae_ob_banner_6_big: "Estandarte grande de la Casa Tully"
+piece_rae_ob_banner_6_big_description: "Estandarte"
+
+piece_rae_ob_banner_7: "Estandarte de la Casa Arryn"
+piece_rae_ob_banner_7_description: "Estandarte"
+piece_rae_ob_banner_7_big: "Estandarte grande de la Casa Arryn"
+piece_rae_ob_banner_7_big_description: "Estandarte"
+
+piece_rae_ob_banner_8: "Estandarte de la Casa Lannister"
+piece_rae_ob_banner_8_description: "Estandarte"
+piece_rae_ob_banner_8_big: "Estandarte grande de la Casa Lannister"
+piece_rae_ob_banner_8_big_description: "Estandarte"
+
+piece_rae_ob_banner_9: "Estandarte de la Casa Baratheon"
+piece_rae_ob_banner_9_description: "Estandarte"
+piece_rae_ob_banner_9_big: "Estandarte grande de la Casa Baratheon"
+piece_rae_ob_banner_9_big_description: "Estandarte"
+
+piece_rae_ob_banner_10: "Estandarte de la Casa Martell"
+piece_rae_ob_banner_10_description: "Estandarte"
+piece_rae_ob_banner_10_big: "Estandarte grande de la Casa Martell"
+piece_rae_ob_banner_10_big_description: "Estandarte"
+
+piece_rae_ob_banner_11: "Estandarte de la Casa Bolton"
+piece_rae_ob_banner_11_description: "Estandarte"
+piece_rae_ob_banner_11_big: "Estandarte grande de la Casa Bolton"
+piece_rae_ob_banner_11_big_description: "Estandarte"
+
+piece_rae_ob_banner_12: "Estandarte de la Casa Velaryon"
+piece_rae_ob_banner_12_description: "Estandarte"
+piece_rae_ob_banner_12_big: "Estandarte grande de la Casa Velaryon"
+piece_rae_ob_banner_12_big_description: "Estandarte"
+
+piece_rae_ob_banner_13: "Estandarte de la Casa Hightower"
+piece_rae_ob_banner_13_description: "Estandarte"
+piece_rae_ob_banner_13_big: "Estandarte grande de la Casa Hightower"
+piece_rae_ob_banner_13_big_description: "Estandarte"
+
+piece_rae_ob_banner_14: "Estandarte de la Casa Strong"
+piece_rae_ob_banner_14_description: "Estandarte"
+piece_rae_ob_banner_14_big: "Estandarte grande de la Casa Strong"
+piece_rae_ob_banner_14_big_description: "Estandarte"
+
+piece_rae_ob_banner_15: "Territorio pacífico"
+piece_rae_ob_banner_15_description: "Estandarte"
+piece_rae_ob_banner_15_big: "Territorio pacífico grande"
+piece_rae_ob_banner_15_big_description: "Estandarte"
+
+piece_rae_ob_banner_16: "En guerra"
+piece_rae_ob_banner_16_description: "Estandarte"
+piece_rae_ob_banner_16_big: "En guerra grande"
+piece_rae_ob_banner_16_big_description: "Estandarte"
+
+piece_rae_ob_banner_17: "Clan Azumatt"
+piece_rae_ob_banner_17_description: "Estandarte del Clan Azumatt"
+piece_rae_ob_banner_17_big: "Clan Azumatt grande"
+piece_rae_ob_banner_17_big_description: "Estandarte grande del Clan Azumatt"
+
+piece_rae_ob_banner_18: "Clan C&M"
+piece_rae_ob_banner_18_description: "Bandera de los amantes de las galletas y la leche"
+piece_rae_ob_banner_18_big: "Clan C&M grande"
+piece_rae_ob_banner_18_big_description: "Bandera de los amantes de las galletas y la leche"
+
+piece_rae_ob_banner_19: "Estandarte de guerra de Ivalia"
+piece_rae_ob_banner_19_description: "Originalmente el estandarte del Lord Barrowmere, ahora es la bandera de guerra del Reino."
+piece_rae_ob_banner_19_big: "Estandarte de guerra grande de Ivalia"
+piece_rae_ob_banner_19_big_description: "Originalmente el estandarte del Lord Barrowmere, ahora es la bandera de guerra del Reino."
+
+piece_rae_ob_banner_20: "Estandarte de los Guardianes de Ivalia"
+piece_rae_ob_banner_20_description: "Una vez convertidos en clan noble, los Guardianes necesitaban un estandarte. Idearon este, con el escudo simbolizando su papel de protectores."
+piece_rae_ob_banner_20_big: "Estandarte grande de los Guardianes de Ivalia"
+piece_rae_ob_banner_20_big_description: "Hecho para que hasta el vikingo más ciego vea que este asentamiento está protegido por los Guardianes."
+
+piece_rae_ob_banner_21: "Estandarte del Reino de Ivalia"
+piece_rae_ob_banner_21_description: "4 colores, 4 razas, 1 rey. Ese es el significado de esta bandera, forjada para mostrar la unión entre las razas de Ivalia."
+piece_rae_ob_banner_21_big: "Estandarte grande del RDI"
+piece_rae_ob_banner_21_big_description: "Hecho para satisfacer el ego humano con cosas grandes."

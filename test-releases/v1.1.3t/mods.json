@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.1.3t",
+  "base": "v1.1.2",
+  "includes": [
+    "v1.1.1t"
+  ],
+  "channel": "test",
+  "description": "Segunda prueba: 5 mods sencillos (mitad 1 de 2 de los que faltan) sobre la estable 1.1.2. DarwinAwards se descarto por incompatibilidad.",
+  "mods": [
+    {
+      "owner": "MainStreetGaming",
+      "name": "BetterDiving",
+      "version": "1.1.2",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/MainStreetGaming/BetterDiving/",
+      "notes": "Depende de Jotunn (ya instalado). Las secciones Server config estan forzadas por el servidor.",
+      "sha256": "fd39a648871224a3243267d0fe68e534ae0495fb7a1ddaaa623edafdbfefb0c7"
+    },
+    {
+      "owner": "Digitalroot",
+      "name": "Digitalroots_Slope_Combat_Assistance",
+      "version": "2.0.30",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Digitalroot/Digitalroots_Slope_Combat_Assistance/",
+      "notes": "En el servidor fuerza la configuracion. Compatible con clientes sin el mod.",
+      "sha256": "677937a6d6d502f13472815e3d27ff235ce7d46733f180041a3364090bda02af"
+    },
+    {
+      "owner": "OdinPlus",
+      "name": "OdinBanners",
+      "version": "1.1.12",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/OdinPlus/OdinBanners/",
+      "notes": "ServerSync propio (valores basicos modificables desde el servidor). El ZIP antiguo traia 1.1.8.",
+      "sha256": "dbdae3f5bdc0b454dd2235d365a9fc64946df70330d64b1bd7677e75216540d1"
+    },
+    {
+      "owner": "ComfyMods",
+      "name": "Pinnacle",
+      "version": "1.17.0",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/ComfyMods/Pinnacle/",
+      "notes": "Solo cliente: pines rapidos del mapa, comando add-map-pin y etiquetas de icono.",
+      "sha256": "32fbf68ad04853e610d49de31d152c23593408b348d0148ce051e41101175c31"
+    },
+    {
+      "owner": "ComfyMods",
+      "name": "ComfySigns",
+      "version": "1.12.0",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/ComfyMods/ComfySigns/",
+      "notes": "Solo cliente: carteles con color, fuente y efectos.",
+      "sha256": "ae125485d519f85a93fba20004e728b7f7e494745030f4eeb5f2155a0475957d"
+    }
+  ]
+}
