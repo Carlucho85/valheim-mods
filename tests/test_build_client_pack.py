@@ -34,7 +34,7 @@ class ClientPackTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(build_client_pack.PackageError):
                 build_client_pack.safe_archive_path(path)
 
-    def test_preserves_server_plugins_and_filters_quick_connect(self) -> None:
+    def test_filters_quick_connect_and_server_only_plugins(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.make_archive(
@@ -55,7 +55,6 @@ class ClientPackTests(unittest.TestCase):
                 self.assertCountEqual(
                     [output for _, output in selected],
                     {
-                        "BepInEx/plugins/MaxPlayerCount.dll",
                         "BepInEx/plugins/Other.dll",
                         "BepInEx/plugins/thunderstore/ICONNX.png",
                     },
@@ -157,10 +156,7 @@ class ClientPackTests(unittest.TestCase):
 
             self.assertEqual(
                 [output for _, output in selected],
-                [
-                    "BepInEx/plugins/Other/MaxPlayerCount.dll",
-                    "BepInEx/plugins/Other/Other.dll",
-                ],
+                ["BepInEx/plugins/Other/Other.dll"],
             )
 
     def test_quick_connect_plugin_and_credentials_are_filtered(self) -> None:
@@ -285,7 +281,7 @@ class ClientPackTests(unittest.TestCase):
                 build_client_pack.OVERRIDES = original_overrides
 
             self.assertEqual(manifest["version"], "v1.0.0")
-            self.assertEqual(manifest["pluginDllCount"], 3)
+            self.assertEqual(manifest["pluginDllCount"], 2)
             self.assertEqual(directory_manifest["fileCount"], manifest["fileCount"])
             with zipfile.ZipFile(directory_output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertIsNone(package.testzip())
@@ -308,10 +304,7 @@ class ClientPackTests(unittest.TestCase):
                     package.read("BepInEx/plugins/AugaLite/AugaLite.dll"),
                     b"updated plugin",
                 )
-                self.assertEqual(
-                    package.read("BepInEx/plugins/MaxPlayerCount.dll"),
-                    b"server plugin",
-                )
+                self.assertNotIn("BepInEx/plugins/MaxPlayerCount.dll", package.namelist())
                 self.assertEqual(
                     package.read("BepInEx/plugins/thunderstore/AdventureBackpacks.dll"),
                     b"2.3.4",

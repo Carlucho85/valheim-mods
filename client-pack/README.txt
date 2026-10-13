@@ -1,16 +1,18 @@
-AKAI HOSHI: CHANGAROK — PAQUETE DE MODS PARA CLIENTE
+AKAI HOSHI: CHANGAROK — MODPACK ESTABLE 1.1.0
 
 Instala o actualiza el paquete con AkaiHoshiLauncher.exe.
 
-Los archivos de BepInEx/config del servidor solo se incluyen cuando aparecen
-en client-pack/server-config-allowlist.txt. Comprueba que no contengan claves,
-tokens ni datos exclusivos del servidor antes de añadirlos.
-El archivo plugins.zip recibido no contiene configuraciones del servidor.
+El inventario cliente 1.1 coincide con los plugins compartidos del servidor
+1.1. MaxPlayerCount.dll se queda solo en el servidor. El paquete se construye
+con los binarios compartidos del servidor y no incluye QuickConnect ni
+configuraciones de BepInEx/config.
 
-El paquete conserva los plugins del servidor excepto QuickConnect, que no se
-usa en los clientes. QuickConnect permanece instalado en el servidor. Las
-configuraciones del servidor solo se copian si están revisadas y permitidas.
-Para los plugins duplicados con distintas versiones, se usa la copia que el
-servidor identifica como activa; esto incluye Adventure Backpacks 2.3.4,
-PlantEasily 2.3.0, Ammo Count 0.5.1, ConfigDrawers 1.1.2, DoorOpenerBruh
-2.0.11, Minimal Status Effects 1.0.8 y Shield Me Bruh 2.1.4.
+No hay nombres de DLL nuevos respecto al paquete estable 1.0.4. Se detectaron
+hashes distintos entre los adjuntos de cliente y servidor para
+BepInEx.ConfigDrawers, DoorOpenerBruh, ShieldMeBruh y ValheimBuildCamera; el
+paquete usa la copia del servidor para que los clientes coincidan con él.
+
+Los archivos fuente saneados están en sources/. Se quitaron configuraciones,
+cachés y logs antes de publicarlos; no son copias byte a byte de los adjuntos.
+Al preparar esta versión se compararon ambos inventarios 1.1 para detectar DLL
+faltantes y versiones distintas antes de publicarla.

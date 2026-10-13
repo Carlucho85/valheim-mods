@@ -1,7 +1,7 @@
-# Akai Hoshi — Valheim mods
+# Akai Hoshi — Valheim mods 1.1
 
-Modpack oficial del servidor **Akai Hoshi: Changarök** y launcher para que los
-jugadores instalen y actualicen los mods con un clic.
+Modpack estable **1.1.0** de **Akai Hoshi: Changarök** y launcher para instalar
+y actualizar los mods de cliente.
 
 ## Jugadores
 
@@ -9,7 +9,8 @@ jugadores instalen y actualicen los mods con un clic.
 2. Ejecútalo, selecciona la carpeta de Valheim si no se detecta automáticamente y pulsa **Instalar / actualizar mods**.
 3. Pulsa **Jugar a Valheim**.
 
-El launcher instala BepInEx si hace falta, obtiene la última versión estable del
+El launcher conserva el diseño y el flujo de actualización de la versión
+estable anterior. Instala BepInEx si hace falta, obtiene la versión estable del
 modpack desde GitHub Releases y comprueba SHA-256 antes de instalar. Detecta
 instalaciones de Steam y copia cualquier archivo que vaya a reemplazar por
 primera vez a `%LOCALAPPDATA%\AkaiHoshi\backups`, incluidas las modificaciones
@@ -26,45 +27,39 @@ Windows SmartScreen puede mostrar una advertencia; descarga el launcher
 
 ## Administrador del servidor
 
-La carpeta `BepInEx/plugins` del servidor (o un ZIP de esa carpeta) es la fuente
-de verdad. Después de actualizar el servidor, genera y publica el paquete
-cliente en un solo paso desde un Windows con Python 3, .NET 8 SDK, GitHub CLI
-autenticado y el cambio del launcher integrado en `main`:
+Los snapshots saneados de las carpetas BepInEx 1.1 están en `sources/` y se
+siguen mediante Git LFS. Se retiraron `BepInEx/config`, cachés y logs para no
+publicar ajustes privados del servidor o del cliente. No son copias byte a byte
+de los adjuntos originales.
+
+Para regenerar el paquete desde Windows con Python 3, .NET 8 SDK y GitHub CLI
+autenticado:
 
 ```powershell
 .\tools\publish_client_release.ps1 `
-  -ServerPlugins "C:\ruta\BepInEx\plugins" `
-  -ServerConfigFolder "C:\ruta\BepInEx\config" `
-  -Version "v1.0.4"
+  -ServerPlugins ".\sources\BepInEx-server-1.1-sanitized.zip" `
+  -Version "v1.1.0"
 ```
 
-Para no publicar por accidente claves o configuraciones privadas, solo se
-incluyen los archivos del servidor enumerados en
-`client-pack/server-config-allowlist.txt`. Revisa cada archivo antes de añadir
-su ruta. Se conservan los plugins recibidos del servidor excepto QuickConnect,
-que permanece en el servidor y se omite solo en el paquete cliente. Las
-configuraciones de BepInEx/config se distribuyen solo tras revisión y mediante
-la lista de permitidos. Esta versión no distribuye ajustes del servidor,
-aunque el ZIP completo incluya `BepInEx/config`.
+El inventario del cliente 1.1 contiene 44 DLL únicas; el servidor tiene las
+mismas más `MaxPlayerCount.dll`, que se excluye del paquete cliente.
+`QuickConnect` se omite también. Para las DLL compartidas, el servidor es la
+fuente canónica. En la validación de 1.1 se comparó el resultado contra el
+inventario del cliente. Las localizaciones y el menú personalizado se mantienen
+mediante `client-pack/overrides/`; no se copian configuraciones generales del
+servidor.
 
-El proceso acepta un ZIP de `plugins` o de la carpeta completa `BepInEx`,
-conserva los plugins del servidor, resuelve copias duplicadas según la versión
-activa reportada por el servidor (incluidos los desfases detectados en
-Adventure Backpacks, PlantEasily, Ammo Count, ConfigDrawers, DoorOpenerBruh,
-Minimal Status Effects y Shield Me Bruh), y omite QuickConnect y
-metadatos/documentación. Después
-aplica localizaciones y la configuración del menú, descarga y verifica el
-paquete oficial de BepInEx, construye
-`valheim-mods-cliente.zip`, genera manifiestos y hashes, compila el launcher y
-publica una GitHub Release. Los
-jugadores no tienen que descargar ni ejecutar scripts: solo usan el `.exe`.
-Para corregir o reemplazar plugins concretos sin editar la fuente, pasa
-`-PluginOverrides "C:\ruta\plugins-actualizados"`; la carpeta debe replicar
-las rutas relativas dentro de `BepInEx\plugins`.
+No se detectaron nombres de DLL nuevos respecto al paquete estable 1.0.4.
+Cuatro DLL tenían hashes distintos entre los adjuntos de cliente y servidor
+1.1 (`BepInEx.ConfigDrawers`, `DoorOpenerBruh`, `ShieldMeBruh` y
+`ValheimBuildCamera`); para esas se usan los bytes de la copia del servidor.
+AdventureBackpacks, Advize_PlantEasily, AmmoCount, BepInEx.ConfigDrawers,
+DoorOpenerBruh, MinimalStatusEffects y ShieldMeBruh aparecen en carpetas de
+plugins instalados en 1.1, pero ya estaban en `thunderstore/` del paquete
+estable anterior.
 
-Los assets grandes se alojan en Releases y no se guardan en el historial Git.
-Cada release contiene el ZIP para el launcher, los manifiestos/checksums y el
-paquete de BepInEx requerido para instalaciones nuevas.
+Las copias fuente grandes se guardan con Git LFS. Los assets descargables del
+launcher y del modpack se publican en GitHub Releases.
 
 ## Desarrollo
 
@@ -73,5 +68,5 @@ python -m unittest discover -s tests -v
 dotnet build .\launcher\AkaiHoshiLauncher\AkaiHoshiLauncher.csproj -c Release
 ```
 
-La GitHub Action valida el generador y compila el launcher para Windows en cada
-pull request y cambio en `main`.
+La GitHub Action valida el generador y compila el launcher para Windows al
+publicar una release.

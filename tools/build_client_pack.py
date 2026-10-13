@@ -24,6 +24,7 @@ PACKAGE_NAME = "valheim-mods-cliente.zip"
 MANIFEST_NAME = "client-manifest.json"
 PACKAGE_MANIFEST_NAME = "client-pack-manifest.json"
 SENSITIVE_PLUGIN_CONFIGS = {"quickconnectserverscfg"}
+SERVER_ONLY_PLUGIN_DLLS = {"maxplayercount.dll"}
 # Duplicate Thunderstore package artwork; Windows treats these case variants as one path.
 NON_RUNTIME_DUPLICATE_FILES = {"thunderstore/IconNX.png"}
 ARCHIVE_METADATA = {
@@ -264,6 +265,8 @@ def discover_server_files(
         lower = relative.lower()
         basename = PurePosixPath(relative).name.lower()
         if is_sensitive_plugin_config(relative):
+            continue
+        if basename in SERVER_ONLY_PLUGIN_DLLS and basename.endswith(".dll"):
             continue
         if lower.startswith("thunderstore/"):
             if (
@@ -597,7 +600,7 @@ def main() -> int:
         "--server-plugins",
         type=Path,
         required=True,
-        help="Server plugins.zip or BepInEx/plugins folder supplied by the administrator",
+        help="BepInEx/plugins ZIP or folder supplied by the administrator",
     )
     parser.add_argument("--version", required=True, help="Release version tag, for example v1.0.0")
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".artifacts" / "client-release")
