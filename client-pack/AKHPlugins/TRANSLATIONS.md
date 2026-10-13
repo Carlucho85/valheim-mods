@@ -16,3 +16,7 @@ propios y términos de Valheim se mantienen.
 
 Las descripciones de las opciones de configuración (`.cfg`) se mantienen en
 inglés: solo las ve quien edita los ajustes, no los jugadores en partida.
+
+## Traducciones de ValheimRAFT
+Incluidas en AKH Plugins (Translations/<Idioma>/valheimraft.json, con el espanol). Antes de la 1.1.2 los paquetes solo llevaban DLL y esta carpeta no se instalaba en instalaciones limpias.
+
