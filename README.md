@@ -1,6 +1,6 @@
-# Akai Hoshi — Valheim mods 1.1
+﻿# Akai Hoshi — Valheim mods 1.1
 
-Modpack estable **1.1.2** de **Akai Hoshi: Changarök** y launcher para instalar
+Modpack estable **1.1.3** de **Akai Hoshi: Changarök** y launcher para instalar
 y actualizar los mods de cliente.
 
 ## Jugadores
@@ -38,7 +38,7 @@ autenticado:
 ```powershell
 .\tools\publish_client_release.ps1 `
   -ServerPlugins ".\sources\BepInEx-server-1.1-sanitized.zip" `
-  -Version "v1.1.2"
+  -Version "v1.1.3"
 ```
 
 El inventario del cliente 1.1 contiene 44 DLL únicas; el servidor tiene las
