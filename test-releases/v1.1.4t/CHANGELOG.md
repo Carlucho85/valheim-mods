@@ -1,6 +1,6 @@
 ## Akai Hoshi v1.1.4t (PRUEBAS - pendiente de OK)
 
-Base: v1.1.3t (56 plugins) + 7 mods nuevos (6 mods y 1 libreria) = 63 plugins. AKH Plugins 1.1.4. Sin UseEquipmentInWater (retirado en la 1.1.3t).
+Base: v1.1.3t (56 plugins) + 6 mods nuevos (5 mods y 1 libreria) = 62 plugins. AKH Plugins 1.1.4. Sin UseEquipmentInWater (retirado en la 1.1.3t).
 
 ### Mods nuevos
 
@@ -12,16 +12,18 @@ Base: v1.1.3t (56 plugins) + 7 mods nuevos (6 mods y 1 libreria) = 63 plugins. A
 | [Distant Dynasties](https://thunderstore.io/c/valheim/p/The_Bees_Decree/Distant_Dynasties/) (The_Bees_Decree) | 3.0.0 | Servidor y cliente |
 | [Plateautem](https://thunderstore.io/c/valheim/p/Erkle64/Plateautem/) (Erkle64) | 0.4.3 | Servidor y cliente |
 | [TheFisher](https://thunderstore.io/c/valheim/p/Marlthon/TheFisher/) (Marlthon) | 0.3.9 | Servidor y cliente |
-| [Almanac](https://thunderstore.io/c/valheim/p/RustyMods/Almanac/) (RustyMods) | 3.8.1 | Servidor y cliente |
 
 (ComfySigns ya iba en la 1.1.3t.)
 
+### Descartado temporalmente
+- **Almanac 3.8.1** (RustyMods): sospechoso de dejar al cliente colgado en la pantalla de carga tras conectar (no llega a aparecer `Spawned`). Retirado para comprobarlo por eliminacion.
+
 ### Servidor
-Backup previo de la 1.1.2 en `akh-backups\20261013-222923-stable-1.1.2`. Servidor reiniciado con los 7 mods nuevos: cargan todos, `Game server connected`, sin excepciones. Aviso benigno: VALKEA registra `piece_Sundial already added` (pieza duplicada con Distant Dynasties).
+Backup previo de la 1.1.2 en `akh-backups\20261013-222923-stable-1.1.2`. Servidor reiniciado con los 6 mods nuevos.
 
 ### Traducciones
 - TheFisher: ya incluye `TheFisher.Spanish.yml`.
-- VALKEA, Distant Dynasties, Almanac, Plateautem y OdinOnDemand: textos solo en ingles (VALKEA y Distant Dynasties los traen dentro de sus asset bundles). Pendiente de decidir tras la prueba funcional.
+- VALKEA, Distant Dynasties, Plateautem y OdinOnDemand: textos solo en ingles. Pendiente de decidir tras la prueba funcional.
 
 ### Como probar
-Descarga AKH-TestClient, escribe `1.1.4t` y pulsa Instalar. Comprueba: entrar al servidor, rendimiento general y en el agua, reproductor de OdinOnDemand (musica), piezas de VALKEA y Distant Dynasties en el martillo, Plateautem, pesca con TheFisher y el panel de Almanac.
+Descarga AKH-TestClient, escribe `1.1.4t` y pulsa Instalar (reinstala aunque ya la tengas). Comprueba primero que pasas de la pantalla de carga; despues el reproductor de OdinOnDemand, las piezas de VALKEA y Distant Dynasties, Plateautem y la pesca.
