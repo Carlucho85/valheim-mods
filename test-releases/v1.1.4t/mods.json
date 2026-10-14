@@ -9,71 +9,202 @@
   "excludes": [
     "UseEquipmentInWater"
   ],
+  "excludePlugins": [
+    "EquipmentAndQuickSlots",
+    "itemdrawers",
+    "CraftFromContainers",
+    "QuickStackStore",
+    "ClockMod",
+    "XPortal",
+    "PortalStations"
+  ],
   "channel": "test",
-  "description": "Ultima prueba: 7 mods nuevos (contenido, NPC, portales y oceano) sobre la estable 1.1.3.",
+  "description": "Prueba 1.1.4t sobre la estable 1.1.3 con BetrValheim, contenido RtD, construccion, exploracion y QoL. Se inicia en un mundo nuevo cuando el administrador lo autorice; esta prueba no cambia el mundo del servidor.",
+  "serverTranslations": [],
   "mods": [
+    {
+      "owner": "aedenthorn",
+      "name": "AmmoCount",
+      "version": "0.5.1",
+      "side": "both",
+      "pluginDir": "AmmoCount",
+      "replaceExisting": true,
+      "sourceSnapshot": "BepInEx/plugins/thunderstore/AmmoCount.dll",
+      "snapshotTarget": "AmmoCount.dll",
+      "sourceSha256": "15f3facdbad6cae820e3fad62689dcd8e3fb50150dab4e99ffed45a297bf5ecf",
+      "page": "https://www.nexusmods.com/valheim/mods/2273",
+      "notes": "Actualiza la dependencia a 0.5.1 desde la DLL de aedenthorn ya conservada en la instantánea estable. El paquete homónimo de Thunderstore (MadBuffoon) es otro mod."
+    },
+    {
+      "owner": "Balrond",
+      "name": "balrond_constructions",
+      "version": "1.5.1",
+      "side": "client",
+      "configs": "extract",
+      "page": "https://thunderstore.io/c/valheim/p/Balrond/balrond_constructions/",
+      "notes": "Piezas de construccion; su documentacion indica funcionamiento local sin sincronizacion.",
+      "sha256": "5c5ae465a94c0929326cafc06627d2a77e322b1e7cb5195bbd1565d38d6782fd"
+    },
+    {
+      "owner": "DezzyCode",
+      "name": "BetrValheim",
+      "version": "5.1.4",
+      "side": "both",
+      "pluginDir": "DezzyCode-BetrValheim",
+      "page": "https://thunderstore.io/c/valheim/p/DezzyCode/BetrValheim/",
+      "notes": "Suite QoL que reemplaza las funciones redundantes retiradas. Requiere Jotunn 2.30 o superior. Sus teclas propias se configuran en F11; MasterKeybind sigue gestionando las entradas compatibles de BepInEx.",
+      "sha256": "fe42ed58b13fa83d1905a15482c130511c3e463ed5b86151fd39e6e7dfa9cf0b"
+    },
+    {
+      "owner": "Enigma_Prime",
+      "name": "Enigmas_Realistic_Smoke_Rework",
+      "version": "0.3.0",
+      "side": "client",
+      "page": "https://thunderstore.io/c/valheim/p/Enigma_Prime/Enigmas_Realistic_Smoke_Rework/",
+      "notes": "Efecto visual de humo. No compatible con Smoke Collision; ese mod no forma parte del pack.",
+      "sha256": "486d4230044d6aaea0940ac673f25fc8999c3305f340e8191e68828dc5f90c5e"
+    },
     {
       "owner": "Erkle64",
       "name": "Plateautem",
       "version": "0.4.3",
       "side": "both",
       "page": "https://thunderstore.io/c/valheim/p/Erkle64/Plateautem/",
-      "notes": "Terreno plano para construir.",
+      "notes": "Totem de aplanado de terreno; se mantiene por decisión del administrador.",
       "sha256": "74c93c94554ed5c2d9023fd421de6683caa7f0d639a8457413ae7c0165336542"
     },
     {
-      "owner": "The_Bees_Decree",
-      "name": "Distant_Dynasties",
-      "version": "3.0.0",
+      "owner": "MagicMike",
+      "name": "CoreWoodExtras",
+      "version": "2.3.5",
       "side": "both",
-      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/Distant_Dynasties/",
-      "notes": "Piezas de construccion. DLL de 272 MB. Pide Jotunn 2.21.3; se usa el Jotunn ya instalado.",
-      "sha256": "1e2ba16e94cbd601aa3012c035c44f5ae2c25aa92aeb3198ac78499253df27ac"
+      "configs": "extract",
+      "page": "https://thunderstore.io/c/valheim/p/MagicMike/CoreWoodExtras/",
+      "notes": "Piezas y mobiliario de core wood. Requiere Jotunn 2.30.2; conserva el locale incluido por el autor.",
+      "sha256": "3e6f21eb7a62619f0ed8efd7cf71f801aae87708c2b00c3fc95a064535702cec"
     },
     {
-      "owner": "blacks7ar",
-      "name": "RenegadeVikings",
-      "version": "1.4.2",
+      "owner": "MathiasDecrock",
+      "name": "PlanBuild",
+      "version": "0.20.0",
       "side": "both",
-      "page": "https://thunderstore.io/c/valheim/p/blacks7ar/RenegadeVikings/",
-      "notes": "NPC vikingos hostiles, jefes y mercader errante.",
-      "sha256": "2b48dbe649f2e0ac80bf9a9a456ca4aa7b0dc55da0147e0b7457b563167e6680"
+      "page": "https://thunderstore.io/c/valheim/p/MathiasDecrock/PlanBuild/",
+      "notes": "Planos, copias y herramientas de terreno; incluye traduccion al espanol.",
+      "sha256": "79859e5f3989d86e316563a652aa817d5821903fe53ca69b14f89563defaffdd"
     },
     {
-      "owner": "RustyMods",
-      "name": "PortalStations",
-      "version": "1.4.7",
+      "owner": "Advize",
+      "name": "PlantEasily",
+      "version": "2.3.0",
       "side": "both",
-      "page": "https://thunderstore.io/c/valheim/p/RustyMods/PortalStations/",
-      "notes": "Estaciones de portal y dispositivo de teletransporte personal. Configuracion sincronizada con el servidor.",
-      "sha256": "5e8e07f50eebc628e799e897f538d704b4973e9abfdd6f818465470852ba30f3"
+      "pluginDir": "Advize_PlantEasily",
+      "replaceExisting": true,
+      "page": "https://thunderstore.io/c/valheim/p/Advize/PlantEasily/",
+      "notes": "Actualiza la version 2.2.2 de la base; EpicLoot ProgressionFix requiere exactamente 2.3.0 para su integracion de cosecha. MasterKeybind detecta automaticamente sus teclas configurables.",
+      "sha256": "1afe2daffc249ff4dc10dcf659f158d8546070822cb3229be780eee9edc287fe"
     },
     {
-      "owner": "The_Bees_Decree",
-      "name": "VALKEA",
-      "version": "3.0.0",
+      "owner": "Searica",
+      "name": "SkilledCarryWeight",
+      "version": "1.5.0",
       "side": "both",
-      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/VALKEA/",
-      "notes": "Muebles y decoracion. DLL de 146 MB. Pide Jotunn 2.21.3; se usa el Jotunn ya instalado.",
-      "sha256": "4b9b4189eaf0196f5191f84df13b36195b8d11949ea5aa1f2e143c00947611af"
+      "replaceExisting": true,
+      "page": "https://thunderstore.io/c/valheim/p/Searica/SkilledCarryWeight/",
+      "notes": "Actualiza la versión 1.4.3 de la base a la 1.5.0 exacta requerida por EpicLoot ProgressionFix.",
+      "sha256": "d97251ea6782be53f3ff63d943db316ab8db6cdaf97b4f5bfab3097e83a5f682"
+    },
+    {
+      "owner": "MidnightMods",
+      "name": "StarLevelSystem",
+      "version": "1.25.1",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/MidnightMods/StarLevelSystem/",
+      "notes": "Se fija en 1.25.1, la versión compatible requerida por EpicLoot ProgressionFix. YamlDotNet 16.3.1 coincide por SHA-256 con la biblioteca de la base estable.",
+      "sha256": "bf38c936c8c2731373385df87012ac7bf7c1afdf2252a704d66724b9d1148612"
     },
     {
       "owner": "Soloredis",
-      "name": "RtDOcean",
-      "version": "2.2.54",
+      "name": "RtDBiomes",
+      "version": "3.2.0",
       "side": "both",
-      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDOcean/",
-      "notes": "Oceano y cocina. Incluye traduccion al espanol.",
-      "sha256": "f461dce1e3267c77cf541923b487677cbf41a87d08543174cafe303f5c1fa1f9"
+      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDBiomes/",
+      "notes": "Reestructura biomas; incluye traduccion al espanol. Requiere Jotunn 2.30.2.",
+      "sha256": "8f080b8a239173c544dacc356ace90e9b61719b24889c1f4c8aec1d65c97af19"
     },
     {
       "owner": "Soloredis",
       "name": "RtDLegends",
-      "version": "1.3.78",
+      "version": "1.4.0",
       "side": "both",
       "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDLegends/",
-      "notes": "Leyendas y jefes. DLL de 242 MB. Incluye traduccion al espanol.",
-      "sha256": "2051c1c6021321e20efb4b4aca1150e6917f226711d9b6f041abac6318ee0060"
+      "notes": "Jefes, mazmorras y progresion; incluye traduccion al espanol y requiere un mundo nuevo.",
+      "sha256": "690eea55e8eaa0c877645f2fc8e04b94282e907be84f21b93942b702d9224b46"
+    },
+    {
+      "owner": "Soloredis",
+      "name": "RtDMythics",
+      "version": "1.4.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDMythics/",
+      "notes": "Progresion magica; incluye traduccion al espanol y requiere un mundo nuevo.",
+      "sha256": "dd1f6d4a7df9647484d72b332280221ae6289d3f82a46219b4e9de6f6252939d"
+    },
+    {
+      "owner": "Soloredis",
+      "name": "RtDOcean",
+      "version": "2.3.1",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDOcean/",
+      "notes": "Contenido oceanico; incluye traduccion al espanol y requiere Jotunn 2.30.2.",
+      "sha256": "682245ad8f57df71f7ad9e42e471bf4c56672f542681b3f893f7d6b9a035f91d"
+    },
+    {
+      "owner": "Tenemo",
+      "name": "EpicLoot_ProgressionFix",
+      "version": "0.1.276",
+      "side": "both",
+      "components": [
+        "patchers"
+      ],
+      "page": "https://thunderstore.io/c/valheim/p/Tenemo/EpicLoot_ProgressionFix/",
+      "notes": "Parche de EpicLoot; requiere EpicLoot 0.14.13 y versiones exactas compatibles de StarLevelSystem, PlantEasily, SkilledCarryWeight y AmmoCount.",
+      "sha256": "fe59b3fc0889bf3543275b7ef1e594f505a9c0e4c25b3a7c9f9050b43bf6e407"
+    },
+    {
+      "owner": "TheShackDev",
+      "name": "Shack_Better_Paths",
+      "version": "1.1.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/TheShackDev/Shack_Better_Paths/",
+      "notes": "Pathen y caminos pavimentados; servidor y jugadores deben tener la misma version minor.",
+      "sha256": "2468a4dac43573a18bcd18c34e64b15f43edd6249f0f2da6cf1c1ee1cff9acd0"
+    },
+    {
+      "owner": "under2ker",
+      "name": "LivingFactions",
+      "version": "0.6.5",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/under2ker/LivingFactions/",
+      "notes": "Facciones NPC; el autor recomienda backup previo al primer uso. Incluye espanol.",
+      "sha256": "254334a0586627820378fc524386b2c80eab73ce4b2f82d1063879b309abb00c"
+    },
+    {
+      "owner": "ValMedia",
+      "name": "OOD_LIB",
+      "version": "1.2.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/ValMedia/OOD_LIB/",
+      "notes": "Bibliotecas de soporte de OdinOnDemand.",
+      "sha256": "eca24d42cee10db6a905a7f94184aeab32c1efd29599d15fad847c813e33aeeb"
+    },
+    {
+      "owner": "ValMedia",
+      "name": "OdinOnDemand",
+      "version": "1.3.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/ValMedia/OdinOnDemand/",
+      "notes": "Requiere OOD_LIB 1.2.0, JsonDotNET 13.0.4 y Jotunn 2.30.2. JsonDotNET ya esta instalado y coincide por SHA-256.",
+      "sha256": "3d949b539367251c49f6e18c04c76fa4a372b0d9d38d9738de1bca8d57c47399"
     }
   ]
 }

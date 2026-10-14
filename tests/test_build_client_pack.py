@@ -235,6 +235,8 @@ class ClientPackTests(unittest.TestCase):
             }
             original_overrides = build_client_pack.OVERRIDES
             try:
+                allowlist = root / "empty-allowlist.txt"
+                allowlist.write_text("", encoding="utf-8")
                 override_dir = root / "overrides"
                 for name, data in overrides.items():
                     target = override_dir / name
@@ -262,6 +264,7 @@ class ClientPackTests(unittest.TestCase):
                         output_dir,
                         "v1.0.0",
                         loader,
+                        config_allowlist=allowlist,
                         plugin_override_dir=root / "plugin-overrides",
                     )
                     server_directory = root / "server" / "BepInEx" / "plugins"
@@ -275,13 +278,20 @@ class ClientPackTests(unittest.TestCase):
                             target.write_bytes(server_archive.read(member))
                     directory_output = root / "directory-out"
                     directory_manifest = build_client_pack.write_package(
-                        root / "server", directory_output, "v1.0.0", loader
+                        root / "server",
+                        directory_output,
+                        "v1.0.0",
+                        loader,
+                        config_allowlist=allowlist,
                     )
             finally:
                 build_client_pack.OVERRIDES = original_overrides
 
             self.assertEqual(manifest["version"], "v1.0.0")
-            self.assertEqual(manifest["pluginDllCount"], 2)
+            runtime_dll_count = sum(
+                path.lower().endswith(".dll") for path in build_client_pack.load_akh_plugin_bundle()[2]
+            )
+            self.assertEqual(manifest["pluginDllCount"], 2 + runtime_dll_count)
             self.assertEqual(directory_manifest["fileCount"], manifest["fileCount"])
             with zipfile.ZipFile(directory_output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertIsNone(package.testzip())
@@ -344,6 +354,30 @@ class ClientPackTests(unittest.TestCase):
                 )
                 self.assertEqual(embedded["version"], "v1.0.0")
                 self.assertTrue(all(item["sha256"] for item in embedded["files"]))
+                files_manifest_path = output_dir / build_client_pack.FILES_MANIFEST_NAME
+                files_manifest = json.loads(
+                    files_manifest_path.read_text(encoding="utf-8")
+                )
+                self.assertEqual(embedded["files"], files_manifest["files"])
+                published_manifest = json.loads(
+                    (output_dir / build_client_pack.MANIFEST_NAME).read_text(
+                        encoding="utf-8"
+                    )
+                )
+                self.assertEqual(
+                    published_manifest["filesManifestSha256"],
+                    build_client_pack.sha256_file(files_manifest_path),
+                )
+                self.assertEqual(
+                    published_manifest["filesManifestSize"],
+                    files_manifest_path.stat().st_size,
+                )
+                for item in files_manifest["files"]:
+                    asset = output_dir / item["assetName"]
+                    self.assertEqual(asset.stat().st_size, item["size"])
+                    self.assertEqual(
+                        build_client_pack.sha256_file(asset), item["sha256"]
+                    )
 
     def test_packages_only_allowlisted_server_config_files(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -393,6 +427,54 @@ class ClientPackTests(unittest.TestCase):
                 any(item["path"] == "BepInEx/config/Other.cfg" for item in embedded["files"])
             )
 
+    def test_packages_preloader_patcher_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(root, {"plugins/Other/Other.dll": b"plugin"})
+            loader, loader_hash = self.make_loader(root)
+            loader_info = root / "bepinex-pack.json"
+            loader_info.write_text(
+                json.dumps(
+                    {
+                        "version": "test",
+                        "url": "not-used",
+                        "sha256": loader_hash,
+                        "archiveName": "BepInExPack_Valheim-test.zip",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            allowlist = root / "empty-allowlist.txt"
+            allowlist.write_text("", encoding="utf-8")
+            empty_overrides = root / "overrides"
+            empty_overrides.mkdir()
+            patcher_overrides = root / "patchers"
+            patcher_overrides.mkdir()
+            patcher = patcher_overrides / "EpicLootProgressionFix.Preloader.dll"
+            patcher.write_bytes(b"preloader")
+            with patch.object(build_client_pack, "OVERRIDES", empty_overrides), patch.object(
+                build_client_pack, "LOADER_INFO", loader_info
+            ):
+                output = root / "out"
+                manifest = build_client_pack.write_package(
+                    source,
+                    output,
+                    "v1.1.4t",
+                    loader,
+                    config_allowlist=allowlist,
+                    patcher_override_dir=patcher_overrides,
+                )
+
+            path = "BepInEx/patchers/EpicLootProgressionFix.Preloader.dll"
+            files_manifest = json.loads(
+                (output / build_client_pack.FILES_MANIFEST_NAME).read_text(encoding="utf-8")
+            )
+            entry = next(item for item in files_manifest["files"] if item["path"] == path)
+            self.assertEqual(entry["sha256"], hashlib.sha256(b"preloader").hexdigest())
+            self.assertEqual(entry["size"], len(b"preloader"))
+            with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
+                self.assertEqual(package.read(path), b"preloader")
+
     def test_rejects_sensitive_quick_connect_config_allowlist_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -429,7 +511,8 @@ class ClientPackTests(unittest.TestCase):
         self.assertIn("BepInEx/config/ValheimMenu/ValheimMenu.cfg", customizations)
         self.assertIn("BepInEx/config/ValheimMenu/logo.png", customizations)
         self.assertIn("BepInEx/plugins/AugaLite/translations.json", customizations)
-        self.assertEqual(runtime, {})
+        self.assertIn("AKH_MasterKeybind.dll", runtime)
+        self.assertTrue(all(data.startswith(b"MZ") for data in runtime.values()))
         self.assertTrue(
             customizations["BepInEx/config/ValheimMenu/logo.png"].startswith(b"\x89PNG\r\n\x1a\n")
         )
@@ -480,8 +563,14 @@ class ClientPackTests(unittest.TestCase):
                 patch.object(build_client_pack, "LOADER_INFO", loader_info),
             ):
                 output = root / "out"
+                allowlist = root / "empty-allowlist.txt"
+                allowlist.write_text("", encoding="utf-8")
                 build_client_pack.write_package(
-                    source, output, "v1.2.3-beta.1", loader
+                    source,
+                    output,
+                    "v1.2.3-beta.1",
+                    loader,
+                    config_allowlist=allowlist,
                 )
             with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertEqual(

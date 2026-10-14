@@ -16,6 +16,9 @@ public sealed class InstallService
         _releaseClient = releaseClient;
     }
 
+    private static bool IsUserFile(string path) =>
+        UserFiles.Contains(path.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase);
+
     public async Task<InstallReport> InstallAsync(
         string gamePath,
         GitHubRelease release,
@@ -53,26 +56,45 @@ public sealed class InstallService
         int preserved = 0;
         bool installedLoader = false;
         string? persistentBackup = null;
-        string? purgeBackup = null;
         try
         {
-            progress.Report(new InstallProgress("Descargando el modpack desde GitHub…", 3));
-            string packageArchive = Path.Combine(downloadDirectory, PackageName);
-            await _releaseClient.DownloadVerifiedAsync(
-                packageAsset,
-                releaseManifest.ArchiveSha256,
-                packageArchive,
-                new Progress<long>(bytes => progress.Report(new InstallProgress(
-                    $"Descargando mods… {FormatBytes(bytes)} / {FormatBytes(releaseManifest.ArchiveSize)}",
-                    3 + Math.Min(53, bytes * 53d / Math.Max(1, releaseManifest.ArchiveSize))))),
-                cancellationToken);
+            LauncherState previousState = SettingsStore.Load();
+            if (!string.Equals(
+                    Path.GetFullPath(previousState.GamePath),
+                    Path.GetFullPath(gamePath),
+                    StringComparison.OrdinalIgnoreCase))
+                previousState = new LauncherState();
 
-            PackageManifest packageManifest = await Task.Run(
-                () => ExtractAndVerifyPackage(packageArchive, packageStage, releaseManifest.Version),
-                cancellationToken);
+            PackageManifest packageManifest;
+            if (releaseManifest.Files.Count > 0)
+            {
+                progress.Report(new InstallProgress("Preparando los archivos del modpack…", 3));
+                packageManifest = await StageReleaseFilesAsync(
+                    gamePath,
+                    release,
+                    releaseManifest,
+                    previousState,
+                    packageStage,
+                    progress,
+                    cancellationToken);
+            }
+            else
+            {
+                progress.Report(new InstallProgress("Descargando el modpack desde GitHub…", 3));
+                string packageArchive = Path.Combine(downloadDirectory, PackageName);
+                await _releaseClient.DownloadVerifiedAsync(
+                    packageAsset,
+                    releaseManifest.ArchiveSha256,
+                    packageArchive,
+                    new Progress<long>(bytes => progress.Report(new InstallProgress(
+                        $"Descargando mods… {FormatBytes(bytes)} / {FormatBytes(releaseManifest.ArchiveSize)}",
+                        3 + Math.Min(53, bytes * 53d / Math.Max(1, releaseManifest.ArchiveSize))))),
+                    cancellationToken);
 
-            progress.Report(new InstallProgress("Instalación limpia: apartando los mods anteriores…", 58));
-            purgeBackup = PurgeExistingInstall(gamePath);
+                packageManifest = await Task.Run(
+                    () => ExtractAndVerifyPackage(packageArchive, packageStage, releaseManifest.Version),
+                    cancellationToken);
+            }
 
             var loaderFiles = new List<StagedFile>();
             if (!HasBepInEx(gamePath))
@@ -93,12 +115,6 @@ public sealed class InstallService
                 installedLoader = true;
             }
 
-            var previousState = SettingsStore.Load();
-            if (!string.Equals(
-                    Path.GetFullPath(previousState.GamePath),
-                    Path.GetFullPath(gamePath),
-                    StringComparison.OrdinalIgnoreCase))
-                previousState = new LauncherState();
             Dictionary<string, string> previousFiles = previousState.Files
                 .Where(file => IsManagedPackagePath(file.Path))
                 .GroupBy(file => file.Path, StringComparer.OrdinalIgnoreCase)
@@ -107,6 +123,7 @@ public sealed class InstallService
                 .Select(file => file.Path)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, string> destinationToRollback = new(StringComparer.OrdinalIgnoreCase);
+            string userFilesBackup = CaptureUserFiles(gamePath, workDirectory);
 
             long requiredGameSpace = packageManifest.Files.Sum(file => file.Size)
                 + loaderFiles.Sum(file => file.Size);
@@ -159,9 +176,40 @@ public sealed class InstallService
                     65 + (packageManifest.Files.Count == 0 ? 30 : index * 30d / packageManifest.Files.Count)));
             }
 
-            foreach ((string stalePath, string expectedHash) in previousFiles)
+            var stalePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string stalePath in previousFiles.Keys)
             {
-                if (nextPaths.Contains(stalePath))
+                if (!nextPaths.Contains(stalePath) && !IsUserFile(stalePath))
+                    stalePaths.Add(stalePath);
+            }
+            string pluginRoot = Path.Combine(gamePath, "BepInEx", "plugins");
+            if (Directory.Exists(pluginRoot))
+            {
+                foreach (string path in Directory.EnumerateFiles(pluginRoot, "*", SearchOption.AllDirectories))
+                {
+                    string relative = Path.GetRelativePath(gamePath, path).Replace('\\', '/');
+                    if (!nextPaths.Contains(relative) && !IsUserFile(relative))
+                        stalePaths.Add(relative);
+                }
+            }
+            foreach (string codeRoot in new[] { "BepInEx/patchers", "BepInEx/monomod" })
+            {
+                string directory = SafeCombine(gamePath, codeRoot);
+                if (!Directory.Exists(directory))
+                    continue;
+                foreach (string path in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+                {
+                    if (!CodeExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    string relative = Path.GetRelativePath(gamePath, path).Replace('\\', '/');
+                    if (!nextPaths.Contains(relative))
+                        stalePaths.Add(relative);
+                }
+            }
+
+            foreach (string stalePath in stalePaths)
+            {
+                if (IsUserFile(stalePath))
                     continue;
                 cancellationToken.ThrowIfCancellationRequested();
                 string destination = SafeCombine(gamePath, stalePath);
@@ -169,10 +217,15 @@ public sealed class InstallService
                     continue;
 
                 string currentHash = await HashFileAsync(destination, cancellationToken);
-                if (!string.Equals(currentHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                if (!previousFiles.TryGetValue(stalePath, out string? expectedHash)
+                    || !string.Equals(currentHash, expectedHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    preserved++;
-                    continue;
+                    if (persistentBackup is null)
+                        persistentBackup = backupDirectory;
+                    string userBackupPath = SafeCombine(backupDirectory, stalePath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(userBackupPath)!);
+                    if (!File.Exists(userBackupPath))
+                        File.Copy(destination, userBackupPath);
                 }
 
                 string rollbackPath = SafeCombine(rollbackDirectory, stalePath);
@@ -183,7 +236,7 @@ public sealed class InstallService
                 removed++;
             }
 
-            RestoreUserFiles(gamePath, purgeBackup);
+            RestoreUserFiles(gamePath, userFilesBackup);
 
             progress.Report(new InstallProgress("Verificando que solo existe esta versión…", 96));
             VerifyResult verification = await VerifyInstallAsync(
@@ -211,7 +264,6 @@ public sealed class InstallService
             try
             {
                 Rollback(applied);
-                RestorePurge(gamePath, purgeBackup);
             }
             catch (Exception rollbackError)
             {
@@ -232,75 +284,144 @@ public sealed class InstallService
         }
     }
 
-    private static readonly string[] PurgedEntries =
-        ["BepInEx", "winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt", "doorstop_libs"];
-
-    // Moves any BepInEx/mod installation aside (same volume, so it is instant) and keeps only the latest copy.
-    private static string? PurgeExistingInstall(string gamePath)
-    {
-        string root = Path.Combine(gamePath, "AKH-purged");
-        string[] present = PurgedEntries.Where(name =>
-            File.Exists(Path.Combine(gamePath, name)) || Directory.Exists(Path.Combine(gamePath, name))).ToArray();
-        if (present.Length == 0)
-            return null;
-
-        if (Directory.Exists(root))
-            Directory.Delete(root, recursive: true);
-        string backup = Path.Combine(root, DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss"));
-        Directory.CreateDirectory(backup);
-        foreach (string name in present)
-        {
-            string source = Path.Combine(gamePath, name);
-            string target = Path.Combine(backup, name);
-            if (Directory.Exists(source))
-                Directory.Move(source, target);
-            else
-                File.Move(source, target);
-        }
-        return backup;
-    }
-
-    private static void RestorePurge(string gamePath, string? backup)
-    {
-        if (backup is null || !Directory.Exists(backup))
-            return;
-        foreach (string name in PurgedEntries)
-        {
-            string current = Path.Combine(gamePath, name);
-            if (Directory.Exists(current))
-                Directory.Delete(current, recursive: true);
-            else if (File.Exists(current))
-                File.Delete(current);
-        }
-        foreach (string entry in Directory.EnumerateFileSystemEntries(backup))
-        {
-            string target = Path.Combine(gamePath, Path.GetFileName(entry));
-            if (Directory.Exists(entry))
-                Directory.Move(entry, target);
-            else
-                File.Move(entry, target);
-        }
-    }
-
-    // Ajustes del jugador que sobreviven a la instalación limpia y nunca viajan en el modpack.
-    private static readonly string[] UserFiles = ["BepInEx/config/akh.masterkeybind.cfg"];
+    private static readonly string[] UserFiles =
+    [
+        "BepInEx/config/akh.masterkeybind.cfg",
+        "BepInEx/config/randyknapp.mods.equipmentandquickslots.cfg",
+        "BepInEx/config/ishid4.mods.betterarchery.cfg"
+    ];
 
     private static readonly string[] CodeRoots = ["BepInEx/plugins", "BepInEx/patchers", "BepInEx/monomod"];
     private static readonly string[] CodeExtensions = [".dll", ".exe"];
 
-    private static void RestoreUserFiles(string gamePath, string? backup)
+    private static string CaptureUserFiles(string gamePath, string workDirectory)
     {
-        if (backup is null)
-            return;
+        string backup = Path.Combine(workDirectory, "user-files");
         foreach (string relative in UserFiles)
         {
-            string source = Path.Combine(backup, relative.Replace('/', Path.DirectorySeparatorChar));
+            string source = SafeCombine(gamePath, relative);
+            if (!File.Exists(source))
+                continue;
+            string target = SafeCombine(backup, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(source, target, overwrite: true);
+        }
+        return backup;
+    }
+
+    private static void RestoreUserFiles(string gamePath, string backup)
+    {
+        foreach (string relative in UserFiles)
+        {
+            string source = SafeCombine(backup, relative);
             if (!File.Exists(source))
                 continue;
             string target = SafeCombine(gamePath, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(source, target, overwrite: true);
         }
+    }
+
+    private async Task<PackageManifest> StageReleaseFilesAsync(
+        string gamePath,
+        GitHubRelease release,
+        ClientReleaseManifest releaseManifest,
+        LauncherState previousState,
+        string packageStage,
+        IProgress<InstallProgress> progress,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(packageStage);
+        long totalBytes = releaseManifest.Files.Sum(file => file.Size);
+        long completedBytes = 0;
+        int index = 0;
+
+        foreach (ManagedFile file in releaseManifest.Files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string relative = ValidatePackagePath(file.Path);
+            string destination = SafeCombine(packageStage, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            string? reusable = await FindReusableFileAsync(
+                gamePath,
+                file,
+                previousState,
+                cancellationToken);
+
+            if (reusable is not null)
+            {
+                File.Copy(reusable, destination, overwrite: false);
+            }
+            else
+            {
+                GitHubAsset asset = GitHubReleaseClient.FindAsset(release, file.AssetName);
+                await _releaseClient.DownloadVerifiedAsync(
+                    asset,
+                    file.Sha256,
+                    destination,
+                    new Progress<long>(bytes =>
+                    {
+                        ReportProgress(bytes, file.Path);
+                    }),
+                    cancellationToken);
+            }
+
+            if (new FileInfo(destination).Length != file.Size
+                || !string.Equals(
+                    await HashFileAsync(destination, cancellationToken),
+                    file.Sha256,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"El archivo preparado no coincide con SHA-256: {file.Path}");
+
+            completedBytes += file.Size;
+            index++;
+            ReportProgress(0, file.Path);
+        }
+
+        return new PackageManifest
+        {
+            SchemaVersion = 1,
+            Version = releaseManifest.Version,
+            Files = releaseManifest.Files
+        };
+
+        void ReportProgress(long currentFileBytes, string filePath)
+        {
+            double fraction = totalBytes == 0
+                ? index / (double)Math.Max(1, releaseManifest.Files.Count)
+                : (completedBytes + currentFileBytes) / (double)totalBytes;
+            progress.Report(new InstallProgress(
+                $"Preparando archivos… {index} / {releaseManifest.Files.Count} ({filePath})",
+                3 + Math.Min(53, fraction * 53)));
+        }
+    }
+
+    private static async Task<string?> FindReusableFileAsync(
+        string gamePath,
+        ManagedFile file,
+        LauncherState previousState,
+        CancellationToken cancellationToken)
+    {
+        var candidates = new List<string> { SafeCombine(gamePath, file.Path) };
+        candidates.AddRange(previousState.Files
+            .Where(previous =>
+                IsManagedPackagePath(previous.Path)
+                && previous.Size == file.Size
+                && string.Equals(previous.Sha256, file.Sha256, StringComparison.OrdinalIgnoreCase))
+            .Select(previous => SafeCombine(gamePath, previous.Path)));
+
+        foreach (string candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(candidate) || new FileInfo(candidate).Length != file.Size)
+                continue;
+            if (string.Equals(
+                    await HashFileAsync(candidate, cancellationToken),
+                    file.Sha256,
+                    StringComparison.OrdinalIgnoreCase))
+                return candidate;
+        }
+
+        return null;
     }
 
     public sealed record VerifyResult(List<string> Problems)
@@ -598,7 +719,8 @@ public sealed class InstallService
     {
         string relative = ValidateRelativePath(path);
         if (!(relative.StartsWith("BepInEx/plugins/", StringComparison.OrdinalIgnoreCase)
-              || relative.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase)))
+              || relative.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase)
+              || relative.StartsWith("BepInEx/patchers/", StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException($"El modpack declara una ruta fuera de sus carpetas permitidas: {relative}");
         return relative;
     }

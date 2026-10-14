@@ -26,6 +26,8 @@ SERVER_CONFIG_ALLOWLIST = ROOT / "client-pack" / "server-config-allowlist.txt"
 PACKAGE_NAME = "valheim-mods-cliente.zip"
 MANIFEST_NAME = "client-manifest.json"
 PACKAGE_MANIFEST_NAME = "client-pack-manifest.json"
+FILES_MANIFEST_NAME = "client-files-manifest.json"
+CLIENT_FILE_PREFIX = "client-file-"
 SENSITIVE_PLUGIN_CONFIGS = {"quickconnectserverscfg"}
 SERVER_ONLY_PLUGIN_DLLS = {"maxplayercount.dll"}
 # Duplicate Thunderstore package artwork; Windows treats these case variants as one path.
@@ -395,6 +397,24 @@ def load_plugin_overrides(plugin_dir: Path | None) -> dict[str, bytes]:
     return result
 
 
+def load_patcher_overrides(patcher_dir: Path | None) -> dict[str, bytes]:
+    if patcher_dir is None:
+        return {}
+    if not patcher_dir.is_dir():
+        raise PackageError(f"Patcher override folder does not exist: {patcher_dir}")
+    result: dict[str, bytes] = {}
+    for source in sorted(patcher_dir.rglob("*")):
+        if source.is_symlink():
+            raise PackageError(f"Symbolic links are not allowed in patcher overrides: {source}")
+        if not source.is_file():
+            continue
+        relative = safe_archive_path(source.relative_to(patcher_dir).as_posix())
+        if PurePosixPath(relative).suffix.lower() != ".dll":
+            raise PackageError(f"Only preloader DLLs may be included as patchers: {relative}")
+        result[f"BepInEx/patchers/{relative}"] = source.read_bytes()
+    return result
+
+
 def load_server_configs(config_dir: Path | None, allowlist_path: Path) -> dict[str, bytes]:
     try:
         allowlist = allowlist_path.read_text(encoding="utf-8-sig").splitlines()
@@ -505,6 +525,7 @@ def write_package(
     server_config_dir: Path | None = None,
     config_allowlist: Path = SERVER_CONFIG_ALLOWLIST,
     plugin_override_dir: Path | None = None,
+    patcher_override_dir: Path | None = None,
 ) -> dict[str, Any]:
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:t\d*|[-+][A-Za-z0-9.-]+)?", version):
         raise PackageError("Version must be a semantic version tag such as v1.0.0 or a test tag such as v1.1.1t.")
@@ -516,6 +537,7 @@ def write_package(
     akh_metadata, akh_customizations, akh_runtime = load_akh_plugin_bundle()
     replacements, merges = load_overrides()
     plugin_overrides = load_plugin_overrides(plugin_override_dir)
+    patcher_overrides = load_patcher_overrides(patcher_override_dir)
     server_configs = load_server_configs(server_config_dir, config_allowlist)
     package_path = output_dir / PACKAGE_NAME
     package_files: list[dict[str, Any]] = []
@@ -568,6 +590,17 @@ def write_package(
             used.add(key)
             file_entries.append((zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest()))
             package_files.append({"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
+
+    for output_path, data in sorted(patcher_overrides.items()):
+        if output_path.casefold() in used:
+            raise PackageError(f"Duplicate client package path: {output_path}")
+        used.add(output_path.casefold())
+        file_entries.append(
+            (zipfile.ZipInfo(output_path), output_path, data, hashlib.sha256(data).hexdigest())
+        )
+        package_files.append(
+            {"path": output_path, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
+        )
 
     selected_paths = {output_path.casefold() for _, output_path in selected}
     for output_path, data in sorted(replacements.items()):
@@ -644,12 +677,16 @@ def write_package(
         )
 
     package_files.sort(key=lambda entry: entry["path"].casefold())
+    for file in package_files:
+        file["assetName"] = f"{CLIENT_FILE_PREFIX}{file['sha256']}.bin"
     package_manifest = {
         "schemaVersion": 1,
         "version": version,
         "files": package_files,
     }
     manifest_bytes = (json.dumps(package_manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    files_manifest_path = output_dir / FILES_MANIFEST_NAME
+    files_manifest_path.write_bytes(manifest_bytes)
     with open_server_source(server_zip) as source, zipfile.ZipFile(
         package_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1, allowZip64=True
     ) as output:
@@ -682,10 +719,17 @@ def write_package(
         "archiveSize": package_size,
         "expandedSize": sum(file["size"] for file in package_files) + len(manifest_bytes) + len(readme_data),
         "fileCount": len(package_files),
-        "pluginDllCount": sum(file["path"].lower().endswith(".dll") for file in package_files),
+        "pluginDllCount": sum(
+            file["path"].lower().startswith("bepinex/plugins/")
+            and file["path"].lower().endswith(".dll")
+            for file in package_files
+        ),
         "loaderVersion": loader_info["version"],
         "loaderArchiveName": loader_path.name,
         "loaderSha256": loader_hash,
+        "filesManifestName": FILES_MANIFEST_NAME,
+        "filesManifestSha256": sha256_file(files_manifest_path),
+        "filesManifestSize": files_manifest_path.stat().st_size,
     }
     manifest_path = output_dir / MANIFEST_NAME
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -702,6 +746,24 @@ def write_package(
             raise PackageError(f"Generated ZIP failed CRC verification at {bad}")
         if package.read(PACKAGE_MANIFEST_NAME) != manifest_bytes:
             raise PackageError("Embedded package manifest did not round-trip.")
+
+    unique_payloads: dict[str, tuple[zipfile.ZipInfo, bytes | None]] = {}
+    for member, _, data, digest in file_entries:
+        unique_payloads.setdefault(digest, (member, data))
+    if len(unique_payloads) + 6 > 1000:
+        raise PackageError("The client package exceeds GitHub's 1,000-asset release limit.")
+    with open_server_source(server_zip) as source:
+        for digest, (member, data) in unique_payloads.items():
+            asset_path = output_dir / f"{CLIENT_FILE_PREFIX}{digest}.bin"
+            if data is not None:
+                asset_path.write_bytes(data)
+            else:
+                with source.open(member) as src, asset_path.open("wb") as dest:
+                    shutil.copyfileobj(src, dest, 1024 * 1024)
+            if asset_path.stat().st_size != next(
+                file["size"] for file in package_files if file["sha256"] == digest
+            ) or sha256_file(asset_path) != digest:
+                raise PackageError(f"Generated client asset failed integrity verification: {asset_path.name}")
     return manifest
 
 
@@ -732,6 +794,11 @@ def main() -> int:
         type=Path,
         help="Optional folder of BepInEx/plugins files that replace or supplement server plugins",
     )
+    parser.add_argument(
+        "--patcher-overrides",
+        type=Path,
+        help="Optional folder of preloader DLLs to install under BepInEx/patchers",
+    )
     args = parser.parse_args()
     try:
         result = write_package(
@@ -742,6 +809,7 @@ def main() -> int:
             args.server_config_folder,
             args.config_allowlist,
             args.plugin_overrides,
+            args.patcher_overrides,
         )
     except (PackageError, OSError, zipfile.BadZipFile) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

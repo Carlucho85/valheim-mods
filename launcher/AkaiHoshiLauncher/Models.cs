@@ -57,6 +57,18 @@ public sealed class ClientReleaseManifest
 
     [JsonPropertyName("loaderSha256")]
     public string LoaderSha256 { get; set; } = "";
+
+    [JsonPropertyName("filesManifestName")]
+    public string FilesManifestName { get; set; } = "";
+
+    [JsonPropertyName("filesManifestSha256")]
+    public string FilesManifestSha256 { get; set; } = "";
+
+    [JsonPropertyName("filesManifestSize")]
+    public long FilesManifestSize { get; set; }
+
+    [JsonIgnore]
+    public List<ManagedFile> Files { get; set; } = [];
 }
 
 public sealed class PackageManifest
@@ -81,6 +93,9 @@ public sealed class ManagedFile
 
     [JsonPropertyName("size")]
     public long Size { get; set; }
+
+    [JsonPropertyName("assetName")]
+    public string AssetName { get; set; } = "";
 }
 
 public sealed class LauncherState

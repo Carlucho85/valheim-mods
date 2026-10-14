@@ -101,14 +101,32 @@ if (-not (Test-Path -LiteralPath $Launcher -PathType Leaf)) {
 }
 
 $Manifest = Get-Content -LiteralPath (Join-Path $OutputPath "client-manifest.json") -Raw | ConvertFrom-Json
+$FilesManifestPath = Join-Path $OutputPath $Manifest.filesManifestName
+if (-not (Test-Path -LiteralPath $FilesManifestPath -PathType Leaf)) {
+    throw "Falta el manifiesto de archivos del cliente: $FilesManifestPath"
+}
+$FilesManifest = Get-Content -LiteralPath $FilesManifestPath -Raw | ConvertFrom-Json
 $Assets = @(
     (Join-Path $OutputPath "valheim-mods-cliente.zip"),
     (Join-Path $OutputPath "valheim-mods-cliente.zip.sha256"),
     (Join-Path $OutputPath "client-manifest.json"),
+    $FilesManifestPath,
     (Join-Path $OutputPath $Manifest.loaderArchiveName),
     (Join-Path $OutputPath "$($Manifest.loaderArchiveName).sha256"),
     $Launcher
 )
+$FileAssets = @()
+$SeenFileAssets = @{}
+foreach ($File in $FilesManifest.files) {
+    $Asset = Join-Path $OutputPath $File.assetName
+    if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) {
+        throw "Falta el asset requerido para la release: $Asset"
+    }
+    if (-not $SeenFileAssets.ContainsKey($File.assetName)) {
+        $SeenFileAssets[$File.assetName] = $true
+        $FileAssets += $Asset
+    }
+}
 foreach ($Asset in $Assets) {
     if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) {
         throw "Falta el asset requerido para la release: $Asset"
@@ -133,6 +151,13 @@ $CreateArguments = @(
 & gh @CreateArguments
 if ($LASTEXITCODE -ne 0) {
     throw "GitHub rechazó la creación de la release."
+}
+
+foreach ($Asset in $FileAssets) {
+    & gh release upload $Version $Asset --repo $Repository
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub rechazó la carga del asset $Asset."
+    }
 }
 
 & gh release edit $Version --repo $Repository --draft=false

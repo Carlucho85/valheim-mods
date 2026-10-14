@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -20,6 +21,7 @@ BASE_SERVER_SNAPSHOT = ROOT / "sources" / "BepInEx-server-1.1-sanitized.zip"
 SKIPPED_NAMES = {"manifest.json", "icon.png", "readme.md", "changelog.md", "license", "license.txt", "license.md"}
 SKIPPED_SUFFIXES = {".pdb", ".mdb"}
 SIDES = {"both", "client", "server"}
+COMPONENTS = {"patchers"}
 
 
 class TestReleaseError(RuntimeError):
@@ -38,9 +40,47 @@ def download(url: str, destination: Path) -> bytes:
     return data
 
 
+def safe_release_path(value: object, label: str) -> PurePosixPath:
+    if not isinstance(value, str) or "\\" in value:
+        raise TestReleaseError(f"Invalid {label}: {value!r}")
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or ":" in value
+    ):
+        raise TestReleaseError(f"Unsafe {label}: {value!r}")
+    return path
+
+
 def fetch_mod(mod: dict, cache: Path) -> bytes:
     owner, name, version = mod["owner"], mod["name"], mod["version"]
     target = cache / f"{owner}-{name}-{version}.zip"
+    if "sourceSnapshot" in mod:
+        source_path = safe_release_path(mod["sourceSnapshot"], "sourceSnapshot")
+        target_path = safe_release_path(mod.get("snapshotTarget"), "snapshotTarget")
+        if [part.casefold() for part in source_path.parts[:2]] != ["bepinex", "plugins"]:
+            raise TestReleaseError("sourceSnapshot must refer to a BepInEx/plugins file")
+        try:
+            with zipfile.ZipFile(BASE_SERVER_SNAPSHOT) as snapshot:
+                payload = snapshot.read(source_path.as_posix())
+        except KeyError as exc:
+            raise TestReleaseError(f"Snapshot file not found: {source_path}") from exc
+        digest = sha256_bytes(payload)
+        if mod.get("sourceSha256") and mod["sourceSha256"] != digest:
+            raise TestReleaseError(f"Source SHA-256 mismatch for {source_path}")
+        mod["sourceSha256"] = digest
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            info = zipfile.ZipInfo(target_path.as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, payload)
+        data = buffer.getvalue()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        return data
+
     data = target.read_bytes() if target.exists() else download(
         f"https://thunderstore.io/package/download/{owner}/{name}/{version}/", target
     )
@@ -71,7 +111,13 @@ def runtime_files(mod: dict, data: bytes, work: Path) -> dict[str, bytes]:
         if parts and parts[0].lower() == "config" and mod.get("configs") == "extract":
             files["@" + "/".join(parts)] = archive.read(info)
             continue
-        if parts and parts[0].lower() in {"config", "patchers", "monomod", "core"}:
+        if parts and parts[0].lower() == "patchers":
+            components = mod.get("components", [])
+            if "patchers" not in components or len(parts) < 2:
+                raise TestReleaseError(f"{mod['name']} ships patchers/; review it manually")
+            files["@patchers/" + "/".join(parts[1:])] = archive.read(info)
+            continue
+        if parts and parts[0].lower() in {"config", "monomod", "core"}:
             raise TestReleaseError(f"{mod['name']} ships {parts[0]}/; review it manually")
         if not parts:
             continue
@@ -86,6 +132,33 @@ def write_files(root: Path, files: dict[str, bytes]) -> None:
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
+
+
+def remove_excluded_plugins(plugin_root: Path, names: list[str]) -> None:
+    excluded = {name.casefold() for name in names}
+    if not excluded or not plugin_root.exists():
+        return
+    for path in sorted(plugin_root.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+        if not path.exists():
+            continue
+        in_thunderstore_cache = (
+            plugin_root.name.casefold() == "server-thunderstore"
+            or path.parent.name.casefold() == "thunderstore"
+        )
+        if path.is_dir() and path.name.casefold() in excluded:
+            shutil.rmtree(path)
+        elif path.is_file() and path.suffix.casefold() == ".dll" and path.stem.casefold() in excluded:
+            path.unlink()
+        elif (
+            path.is_file()
+            and in_thunderstore_cache
+            and any(
+                path.stem.casefold() == name
+                or path.stem.casefold().startswith(f"{name}-")
+                for name in excluded
+            )
+        ):
+            path.unlink()
 
 
 def main() -> int:
@@ -106,7 +179,10 @@ def main() -> int:
         shutil.rmtree(out / "stage")
     cache.mkdir(parents=True, exist_ok=True)
     server_upload = out / "stage" / "server-upload"
+    server_patchers = out / "stage" / "server-patchers"
     client_only = out / "stage" / "client-only-plugins"
+    client_patchers: dict[str, bytes] = {}
+    replacement_paths: set[str] = set()
     merged = out / "stage" / "server-merged"
 
     # Mods of earlier test releases (not yet in the base snapshot) are part of the merged tree
@@ -124,15 +200,42 @@ def main() -> int:
         zip_path = cache / f"{mod['owner']}-{mod['name']}-{mod['version']}.zip"
         files = runtime_files(mod, data, zip_path)
         config_files = {k[1:]: v for k, v in files.items() if k.startswith("@")}
+        patcher_files = {k[len("@patchers/"):]: v for k, v in files.items() if k.startswith("@patchers/")}
         files = {k: v for k, v in files.items() if not k.startswith("@")}
+        replace_existing = mod.get("replaceExisting", False)
+        if not isinstance(replace_existing, bool):
+            raise TestReleaseError(f"replaceExisting must be a boolean for {mod['name']}")
+        plugin_dir = mod.get("pluginDir", mod["name"])
+        if (
+            not isinstance(plugin_dir, str)
+            or not plugin_dir.strip()
+            or plugin_dir in {".", ".."}
+            or "/" in plugin_dir
+            or "\\" in plugin_dir
+            or ":" in plugin_dir
+        ):
+            raise TestReleaseError(f"Invalid pluginDir for {mod['name']}")
         if config_files and is_new:
             write_files(out / "stage" / "server-config", {k.split("/", 1)[1]: v for k, v in config_files.items()})
+        if patcher_files:
+            if mod["side"] in {"both", "server"} and is_new:
+                write_files(server_patchers / plugin_dir, patcher_files)
+            if mod["side"] in {"both", "client"}:
+                for relative, data in patcher_files.items():
+                    existing = client_patchers.get(relative)
+                    if existing is not None and existing != data:
+                        raise TestReleaseError(f"Conflicting client patcher file: {relative}")
+                    client_patchers[relative] = data
         if mod["side"] in {"both", "server"}:
             if is_new:
-                write_files(server_upload / mod["name"], files)
-            write_files(merged / "BepInEx" / "plugins" / mod["name"], files)
+                write_files(server_upload / plugin_dir, files)
+            write_files(merged / "BepInEx" / "plugins" / plugin_dir, files)
+            if is_new and replace_existing:
+                replacement_paths.update(
+                    f"{plugin_dir}/{relative}".casefold() for relative in files
+                )
         if mod["side"] == "client":
-            write_files(client_only / mod["name"], files)
+            write_files(client_only / plugin_dir, files)
         print(f"{mod['side']:6} {mod['owner']}/{mod['name']} {mod['version']} ({len(files)} files)")
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -142,10 +245,23 @@ def main() -> int:
                 continue
             target = merged / info.filename
             if target.exists():
+                relative = info.filename[len("BepInEx/plugins/"):].casefold()
+                if relative in replacement_paths:
+                    continue
                 raise TestReleaseError(f"New mod overlaps a base file: {info.filename}")
             target.parent.mkdir(parents=True, exist_ok=True)
             with base.open(info) as src, target.open("wb") as dst:
                 shutil.copyfileobj(src, dst, 1024 * 1024)
+
+    excluded_plugins = manifest.get("excludePlugins", [])
+    if not isinstance(excluded_plugins, list) or not all(
+        isinstance(name, str) and name.strip() for name in excluded_plugins
+    ):
+        raise TestReleaseError("excludePlugins must be a list of non-empty plugin names")
+    remove_excluded_plugins(merged / "BepInEx" / "plugins", excluded_plugins)
+    remove_excluded_plugins(client_only, excluded_plugins)
+    if client_patchers:
+        write_files(out / "stage" / "client-patchers", client_patchers)
 
     if args.skip_build:
         return 0
@@ -157,6 +273,10 @@ def main() -> int:
     ]
     if client_only.exists():
         command += ["--plugin-overrides", str(client_only)]
+    if client_patchers:
+        command += ["--patcher-overrides", str(out / "stage" / "client-patchers")]
+    if (out / "stage" / "server-config").exists():
+        command += ["--server-config-folder", str(out / "stage" / "server-config")]
     return subprocess.call(command)
 
 

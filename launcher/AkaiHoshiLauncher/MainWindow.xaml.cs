@@ -94,7 +94,7 @@ public partial class MainWindow : Window
             ReleaseStatusText.Text = current
                 ? $"Ya tienes la versión de pruebas {_manifest.Version}"
                 : $"Se instalará la versión de pruebas {_manifest.Version}";
-            StatusText.Text = "Al instalar se purgará cualquier instalación de mods anterior (se guarda una copia en AKH-purged).";
+            StatusText.Text = "Al instalar se actualizarán los archivos necesarios, se retirarán los mods obsoletos y se conservarán tus configuraciones personales.";
 #else
             ReleaseStatusText.Text = current
                 ? $"Ya tienes la versión {_manifest.Version}"
@@ -143,7 +143,7 @@ public partial class MainWindow : Window
             StatusText.Text = $"Todo verificado: solo está instalada la versión {_state.InstalledVersion}.";
             return;
         }
-        StatusText.Text = $"Se detectaron {result.Problems.Count} diferencias con la versión {_state.InstalledVersion}. Pulsa Instalar para repararlo (instalación limpia)." + Environment.NewLine + string.Join(Environment.NewLine, result.Problems.Take(4));
+        StatusText.Text = $"Se detectaron {result.Problems.Count} diferencias con la versión {_state.InstalledVersion}. Pulsa Instalar para repararlas." + Environment.NewLine + string.Join(Environment.NewLine, result.Problems.Take(4));
     }
 
     private async void InstallButton_Click(object sender, RoutedEventArgs e)

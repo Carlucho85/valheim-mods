@@ -2,3 +2,4 @@
 # Add only client-safe settings that should be distributed with the modpack.
 # Review every file for passwords, tokens, private addresses, and server-only settings.
 # Do not allowlist QuickConnect credentials or server-only configuration.
+BalrondConstructions-translation/Spanish.json

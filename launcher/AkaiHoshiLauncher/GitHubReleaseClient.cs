@@ -75,6 +75,71 @@ public sealed class GitHubReleaseClient
         if (!IsSha256(manifest.LoaderSha256) || loader.Size <= 0)
             throw new InvalidDataException("El asset de BepInEx no coincide con el manifiesto publicado.");
 
+        if (!string.IsNullOrWhiteSpace(manifest.FilesManifestName))
+        {
+            if (manifest.FilesManifestName != "client-files-manifest.json"
+                || !IsSha256(manifest.FilesManifestSha256)
+                || manifest.FilesManifestSize <= 0
+                || manifest.FilesManifestSize > 8 * 1024 * 1024)
+                throw new InvalidDataException("El manifiesto de archivos de cliente no es válido.");
+
+            GitHubAsset filesManifestAsset = FindAsset(release, manifest.FilesManifestName);
+            if (filesManifestAsset.Size != manifest.FilesManifestSize)
+                throw new InvalidDataException("El manifiesto de archivos no coincide con el tamaño publicado.");
+            using HttpResponseMessage filesResponse = await Http.GetAsync(
+                filesManifestAsset.BrowserDownloadUrl,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+            filesResponse.EnsureSuccessStatusCode();
+            await using Stream filesStream = await filesResponse.Content.ReadAsStreamAsync(cancellationToken);
+            using var manifestBuffer = new MemoryStream((int)manifest.FilesManifestSize);
+            byte[] buffer = new byte[81920];
+            while (true)
+            {
+                int read = await filesStream.ReadAsync(buffer, cancellationToken);
+                if (read == 0)
+                    break;
+                if (manifestBuffer.Length + read > manifest.FilesManifestSize)
+                    throw new InvalidDataException("El manifiesto de archivos supera el tamaño publicado.");
+                manifestBuffer.Write(buffer, 0, read);
+            }
+            byte[] filesBytes = manifestBuffer.ToArray();
+            string actualHash = Convert.ToHexString(SHA256.HashData(filesBytes)).ToLowerInvariant();
+            if (filesBytes.LongLength != manifest.FilesManifestSize
+                || !CryptographicOperations.FixedTimeEquals(
+                    Convert.FromHexString(actualHash),
+                    Convert.FromHexString(manifest.FilesManifestSha256)))
+                throw new InvalidDataException("El manifiesto de archivos no supera la verificación SHA-256.");
+
+            PackageManifest? filesManifest = JsonSerializer.Deserialize<PackageManifest>(filesBytes);
+            if (filesManifest is null
+                || filesManifest.SchemaVersion != 1
+                || filesManifest.Version != manifest.Version
+                || filesManifest.Files.Count == 0)
+                throw new InvalidDataException("El manifiesto de archivos no coincide con la versión publicada.");
+            manifest.Files = filesManifest.Files;
+        }
+
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ManagedFile file in manifest.Files)
+        {
+            string normalizedPath = file.Path.Replace('\\', '/');
+            if (!IsManagedPath(normalizedPath)
+                || !paths.Add(normalizedPath)
+                || file.Size < 0
+                || !IsSha256(file.Sha256)
+                || !string.Equals(
+                    file.AssetName,
+                    $"client-file-{file.Sha256.ToLowerInvariant()}.bin",
+                    StringComparison.Ordinal))
+                throw new InvalidDataException("El manifiesto contiene un archivo de cliente no válido.");
+
+            file.Path = normalizedPath;
+            GitHubAsset fileAsset = FindAsset(release, file.AssetName);
+            if (fileAsset.Size != file.Size)
+                throw new InvalidDataException($"El asset {file.AssetName} no coincide con el tamaño del manifiesto.");
+        }
+
         return (release, manifest);
     }
 
@@ -135,6 +200,18 @@ public sealed class GitHubReleaseClient
 
     private static bool IsSha256(string value) =>
         value.Length == 64 && value.All(Uri.IsHexDigit);
+
+    private static bool IsManagedPath(string path)
+    {
+        string normalized = path.Replace('\\', '/');
+        return !string.IsNullOrWhiteSpace(normalized)
+            && !normalized.StartsWith("/", StringComparison.Ordinal)
+            && !normalized.Contains(':')
+            && !normalized.Split('/').Any(part => part is "" or "." or "..")
+            && (normalized.StartsWith("BepInEx/plugins/", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase)
+                || normalized.StartsWith("BepInEx/patchers/", StringComparison.OrdinalIgnoreCase));
+    }
 
     private static HttpClient CreateClient()
     {

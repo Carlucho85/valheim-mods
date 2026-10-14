@@ -7,7 +7,7 @@ propios y términos de Valheim se mantienen.
 |---|---|---|
 | HipLantern 1.1.13 | Objeto, descripción, avisos de luz/calor, slot | Español incluido en la DLL («Linterna de cadera»). Sin cambios. |
 | StaminaExtended 1.0.11 | Tooltips de comida y panel de efectos | Usa tokens de Valheim (`$se_staminaregen`, `$item_current`), ya en español. Sin cambios. |
-| SkilledCarryWeight 1.4.3 | «Quick Cart», «Cart Mass», «Found cart {0} away», «[tecla] Quick Attach/Detach» | **Pendiente.** Los textos están codificados en la DLL y no se pueden sustituir con un archivo de traducción. Requiere un componente de código en AKH Plugins (`runtime/`). |
+| SkilledCarryWeight 1.5.0 | «[tecla] Quick Attach/Detach» en el texto del carro | **Traducido** por AKH Spanish Translations cuando Valheim está en español («Acoplar/desacoplar rápidamente»). «Quick Cart» y «Cart Mass» son nombres de secciones de configuración y se mantienen sin cambios para no alterar las claves; «Found cart {0} away» solo aparece en el log. |
 | FloorsAreRoofs 2.0.2 | Solo registros en el log | Nada que traducir. |
 | InstantMonsterDrop 1.0.2 | Solo configuración | Nada que traducir. |
 | NoStamCosts 0.1.2 | Solo configuración | Nada que traducir. |
@@ -32,3 +32,9 @@ Incluidas en AKH Plugins (Translations/<Idioma>/valheimraft.json, con el espanol
 | Pinnacle 1.17.0 | Comandos de consola y configuracion | Nada visible para el jugador en partida. |
 | ComfySigns 1.12.0 | Solo configuracion | Nada que traducir. |
 
+## v1.1.4t (prueba)
+
+| Mod | Archivo | Estado |
+|---|---|---|
+| BetrValheim 5.1.4 | Locale incluido por el autor | No se incluye una traducción española propia; las teclas del mod se configuran en el panel F11. |
+| CoreWoodExtras 2.3.5 | Locales incluidos por el autor | Se conservan los archivos de idioma originales del paquete. |

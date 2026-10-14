@@ -22,14 +22,30 @@ if (-not (Test-Path (Join-Path $Release "client-manifest.json"))) {
 if ($LASTEXITCODE -ne 0) { throw "Autenticate con gh." }
 
 $Manifest = Get-Content -LiteralPath (Join-Path $Release "client-manifest.json") -Raw | ConvertFrom-Json
-$Assets = @(
+$FilesManifestPath = Join-Path $Release $Manifest.filesManifestName
+if (-not (Test-Path -LiteralPath $FilesManifestPath -PathType Leaf)) {
+    throw "Falta el manifiesto de archivos: $FilesManifestPath"
+}
+$FilesManifest = Get-Content -LiteralPath $FilesManifestPath -Raw | ConvertFrom-Json
+$SharedAssets = @(
     (Join-Path $Release "valheim-mods-cliente.zip"),
     (Join-Path $Release "valheim-mods-cliente.zip.sha256"),
-    (Join-Path $Release "client-manifest.json"),
     (Join-Path $Release $Manifest.loaderArchiveName),
     (Join-Path $Release "$($Manifest.loaderArchiveName).sha256")
 )
-foreach ($Asset in $Assets) {
+$FilesManifestAsset = $FilesManifestPath
+$ClientManifestAsset = Join-Path $Release "client-manifest.json"
+$FileAssets = @()
+$SeenFileAssets = @{}
+foreach ($File in $FilesManifest.files) {
+    $Asset = Join-Path $Release $File.assetName
+    if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) { throw "Falta $Asset" }
+    if (-not $SeenFileAssets.ContainsKey($File.assetName)) {
+        $SeenFileAssets[$File.assetName] = $true
+        $FileAssets += $Asset
+    }
+}
+foreach ($Asset in $SharedAssets + @($FilesManifestAsset, $ClientManifestAsset)) {
     if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) { throw "Falta $Asset" }
 }
 
@@ -39,23 +55,53 @@ $Notes = "**VERSION DE PRUEBAS - pendiente de OK.** No es para jugadores: usa AK
 $NotesFile = Join-Path $Out "release-notes.md"
 [System.IO.File]::WriteAllText($NotesFile, $Notes, (New-Object System.Text.UTF8Encoding($false)))
 
+$Publish = Join-Path $Out "testclient"
+& dotnet publish ".\launcher\AkaiHoshiLauncher\AkaiHoshiLauncher.csproj" -c Release -r win-x64 `
+    --self-contained true -o $Publish -p:Channel=Test -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+if ($LASTEXITCODE -ne 0) { throw "Fallo la compilacion de AKH-TestClient." }
+$Exe = Join-Path $Publish "AKH-TestClient.exe"
+if (-not (Test-Path -LiteralPath $Exe -PathType Leaf)) { throw "No se genero AKH-TestClient.exe." }
+
 cmd /c "gh release view $Version --repo $Repository >nul 2>nul"
 if ($LASTEXITCODE -eq 0) {
-    & gh release upload $Version @Assets --repo $Repository --clobber
+    $ExistingAssets = @(& gh release view $Version --repo $Repository --json assets --jq ".assets[].name")
+    if ($LASTEXITCODE -ne 0) { throw "No se pudieron consultar los assets actuales de $Version." }
+    foreach ($Asset in $FileAssets + $SharedAssets) {
+        & gh release upload $Version $Asset --repo $Repository --clobber
+        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida de $Asset." }
+    }
+    $WantedNames = @($FileAssets | ForEach-Object { [System.IO.Path]::GetFileName($_) })
+    foreach ($OldAsset in $ExistingAssets) {
+        if ($OldAsset -like "client-file-*.bin" -and $OldAsset -notin $WantedNames) {
+            & gh release delete-asset $Version $OldAsset --repo $Repository --yes
+            if ($LASTEXITCODE -ne 0) { throw "No se pudo retirar el asset obsoleto $OldAsset." }
+        }
+    }
+    foreach ($Asset in @($FilesManifestAsset, $ClientManifestAsset)) {
+        & gh release upload $Version $Asset --repo $Repository --clobber
+        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $Asset." }
+    }
     & gh release edit $Version --repo $Repository --notes-file $NotesFile --prerelease
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la actualizacion de notas de $Version." }
 } else {
-    & gh release create $Version @Assets --repo $Repository --target $Branch --prerelease `
+    & gh release create $Version @SharedAssets --repo $Repository --target $Branch --draft --prerelease `
         --title "Akai Hoshi $Version (PRUEBAS)" --notes-file $NotesFile
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la creacion de $Version." }
+    foreach ($Asset in $FileAssets) {
+        & gh release upload $Version $Asset --repo $Repository
+        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida de $Asset." }
+    }
+    foreach ($Asset in @($FilesManifestAsset, $ClientManifestAsset)) {
+        & gh release upload $Version $Asset --repo $Repository
+        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $Asset." }
+    }
+    & gh release edit $Version --draft=false --prerelease --notes-file $NotesFile
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la publicacion de $Version." }
 }
 if ($LASTEXITCODE -ne 0) { throw "Fallo la publicacion de $Version." }
 
 if (-not $SkipLauncher) {
-    $Publish = Join-Path $Out "testclient"
-    & dotnet publish ".\launcher\AkaiHoshiLauncher\AkaiHoshiLauncher.csproj" -c Release -r win-x64 `
-        --self-contained true -o $Publish -p:Channel=Test -p:PublishSingleFile=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
-    if ($LASTEXITCODE -ne 0) { throw "Fallo la compilacion de AKH-TestClient." }
-    $Exe = Join-Path $Publish "AKH-TestClient.exe"
     cmd /c "gh release view test-launcher --repo $Repository >nul 2>nul"
     if ($LASTEXITCODE -eq 0) {
         & gh release upload test-launcher $Exe --repo $Repository --clobber
