@@ -43,7 +43,6 @@ IGNORED_DOC_NAMES = {"readme.md", "changelog.md", "changelog.txt"}
 # The server log identifies these Thunderstore copies as newer/active than the
 # stale DLLs left in the installed plugin folders.
 THUNDERSTORE_PREFERRED_DLLS = {
-    "adventurebackpacks.dll",
     "ammocount.dll",
     "bepinex.configdrawers.dll",
     "dooropenerbruh.dll",
@@ -78,15 +77,6 @@ def plugin_relative_path(path: str) -> str | None:
         if normalized.casefold().startswith(prefix.casefold()):
             return normalized[len(prefix) :]
     return None
-
-
-def is_stale_adventure_backpacks_file(
-    relative: str, thunderstore_dll_names: set[str]
-) -> bool:
-    return (
-        relative.casefold().split("/", 1)[0] == "adventurebackpacks"
-        and "adventurebackpacks.dll" in thunderstore_dll_names
-    )
 
 
 def is_stale_preferred_plugin_dll(
@@ -231,9 +221,7 @@ def discover_server_files(
             continue
         if is_quick_connect_path(relative):
             continue
-        if is_stale_adventure_backpacks_file(
-            relative, thunderstore_dll_names
-        ) or is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
+        if is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue
@@ -261,9 +249,7 @@ def discover_server_files(
             continue
         if is_quick_connect_path(relative):
             continue
-        if is_stale_adventure_backpacks_file(
-            relative, thunderstore_dll_names
-        ) or is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
+        if is_stale_preferred_plugin_dll(relative, thunderstore_dll_names):
             continue
         if relative in NON_RUNTIME_DUPLICATE_FILES:
             continue

@@ -114,6 +114,35 @@
       "sha256": "d97251ea6782be53f3ff63d943db316ab8db6cdaf97b4f5bfab3097e83a5f682"
     },
     {
+      "owner": "zolantris",
+      "name": "ValheimRAFT",
+      "version": "5.0.9",
+      "side": "server",
+      "pluginDir": "ValheimRAFT",
+      "sourceSnapshot": "BepInEx/plugins/thunderstore/ValheimRAFT.dll",
+      "snapshotTarget": "ValheimRAFT.dll",
+      "sourceSha256": "8b94acd3c42437b53ca78418b63e88d5388a70fcb014e884a81b004bafa2280b",
+      "sourceSnapshotFiles": [
+        {
+          "source": "BepInEx/plugins/thunderstore/ZdoWatcher.dll",
+          "target": "ZdoWatcher.dll",
+          "sha256": "2cb85c7bcae3fd8a627df354749cde2c272cffb5b541be61464b2a72a9c5a813"
+        },
+        {
+          "source": "BepInEx/plugins/thunderstore/DynamicLocations.dll",
+          "target": "DynamicLocations.dll",
+          "sha256": "07b8c09ffada29d6bc8470b42ceba391d527d47d379b977d811f30716499ce69"
+        },
+        {
+          "source": "BepInEx/plugins/thunderstore/Zolantris.Shared.dll",
+          "target": "Zolantris.Shared.dll",
+          "sha256": "a0a4ef26d67198eb21d1b3d50dd6e91fe3470ca439a712371245fab2aeebd2c3"
+        }
+      ],
+      "page": "https://thunderstore.io/c/valheim/p/zolantris/ValheimRAFT/",
+      "notes": "Instala en el directorio activo del servidor la version 5.0.9 ya existente en la instantanea estable. Requiere Jotunn 2.30.2, ZdoWatcher 1.2.0 y DynamicLocations 1.2.0; se reutilizan sus DLL y Zolantris.Shared.dll del mismo snapshot. Paginas: https://thunderstore.io/c/valheim/p/zolantris/ZdoWatcher/ y https://thunderstore.io/c/valheim/p/zolantris/DynamicLocations/."
+    },
+    {
       "owner": "MidnightMods",
       "name": "StarLevelSystem",
       "version": "1.25.1",

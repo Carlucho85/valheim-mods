@@ -83,7 +83,7 @@ class ClientPackTests(unittest.TestCase):
                     b"direct plugin version",
                 )
 
-    def test_prefers_active_adventure_backpacks_thunderstore_version(self) -> None:
+    def test_prefers_installed_adventure_backpacks_version(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.make_archive(
@@ -105,8 +105,8 @@ class ClientPackTests(unittest.TestCase):
             self.assertEqual(
                 selected_files,
                 {
-                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
-                    "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": b'{"active":"new"}',
+                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.2.11",
+                    "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": b'{"stale":"old"}',
                     "BepInEx/plugins/Other/Other.dll": b"other plugin",
                 },
             )
@@ -207,11 +207,11 @@ class ClientPackTests(unittest.TestCase):
                     "plugins/QuickConnect/quick_connect_servers.cfg": b"host:secret",
                     "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.2.11",
                     "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
-                        {"stale": "old"}
+                        {"one": "Directo", "new": "Directo nuevo"}
                     ).encode(),
                     "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
                     "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": json.dumps(
-                        {"one": "Uno", "new": "Nueva"}
+                        {"one": "Caché obsoleta"}
                     ).encode(),
                     "plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json": json.dumps(
                         {"greeting": "Hola"}
@@ -226,7 +226,7 @@ class ClientPackTests(unittest.TestCase):
                 "BepInEx/plugins/AugaLite/translations.json": json.dumps(
                     {"known": "Español", "": ""}
                 ).encode(),
-                "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
+                "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
                     {"one": "Mochila"}
                 ).encode(),
                 "BepInEx/plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json.overrides.json": json.dumps(
@@ -309,7 +309,7 @@ class ClientPackTests(unittest.TestCase):
                 self.assertTrue(
                     any(
                         entry["target"]
-                        == "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
+                        == "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
                         and entry["mode"] == "merge-json"
                         for entry in akh_manifest["files"]
                     )
@@ -320,10 +320,10 @@ class ClientPackTests(unittest.TestCase):
                 )
                 backpack = json.loads(
                     package.read(
-                        "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
+                        "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
                     )
                 )
-                self.assertEqual(backpack, {"one": "Mochila", "new": "Nueva"})
+                self.assertEqual(backpack, {"one": "Mochila", "new": "Directo nuevo"})
                 auga = json.loads(
                     package.read("BepInEx/plugins/AugaLite/translations.json")
                 )
@@ -334,11 +334,11 @@ class ClientPackTests(unittest.TestCase):
                 )
                 self.assertNotIn("BepInEx/plugins/MaxPlayerCount.dll", package.namelist())
                 self.assertEqual(
-                    package.read("BepInEx/plugins/thunderstore/AdventureBackpacks.dll"),
-                    b"2.3.4",
+                    package.read("BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll"),
+                    b"2.2.11",
                 )
                 self.assertNotIn(
-                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll",
+                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll",
                     package.namelist(),
                 )
                 self.assertNotIn(

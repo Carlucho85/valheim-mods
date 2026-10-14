@@ -15,6 +15,7 @@ Base: version estable v1.1.3, mas las pruebas anteriores v1.1.1t y v1.1.3t.
 | PlantEasily (actualización de dependencia) | 2.3.0 | Servidor y cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/Advize/PlantEasily/) |
 | SkilledCarryWeight (actualización de dependencia) | 1.5.0 | Servidor y cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/Searica/SkilledCarryWeight/) |
 | AmmoCount (actualización de dependencia) | 0.5.1 | Servidor y cliente | [Nexus Mods](https://www.nexusmods.com/valheim/mods/2273) |
+| ValheimRAFT (reinstalación en el servidor) | 5.0.9 | Servidor; ya incluido en cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/zolantris/ValheimRAFT/) |
 | StarLevelSystem | 1.25.1 | Servidor y cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/MidnightMods/StarLevelSystem/) |
 | RtDBiomes | 3.2.0 | Servidor y cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/Soloredis/RtDBiomes/) |
 | RtDLegends | 1.4.0 | Servidor y cliente | [Thunderstore](https://thunderstore.io/c/valheim/p/Soloredis/RtDLegends/) |
@@ -44,6 +45,8 @@ Base: version estable v1.1.3, mas las pruebas anteriores v1.1.1t y v1.1.3t.
 - StarLevelSystem se fija en 1.25.1 porque EpicLoot ProgressionFix 0.1.276 rechaza la versión 1.26.0.
 - PlantEasily se actualiza a 2.3.0, requerido por la integración de cosecha de EpicLoot ProgressionFix.
 - SkilledCarryWeight se actualiza a 1.5.0, requerido por EpicLoot ProgressionFix. AmmoCount se actualiza a 0.5.1 desde la DLL de aedenthorn incluida en la instantánea estable; el paquete de Thunderstore con ese nombre pertenece a otro proyecto y no se sustituye.
+- ValheimRAFT 5.0.9 estaba solo en la caché de Thunderstore de la instantánea y no se instaló en la carpeta activa del servidor; se reutiliza el DLL ya disponible y se instala en `BepInEx/plugins/ValheimRAFT/`. Sus dependencias obligatorias ZdoWatcher 1.2.0 y DynamicLocations 1.2.0, junto con Zolantris.Shared.dll, también se reutilizan desde el snapshot local.
+- Adventure Backpacks debe mantenerse en 2.2.11 para coincidir con el servidor; se empaqueta el DLL instalado, no la copia obsoleta de Thunderstore 2.3.4.
 
 ## Mundo y prueba
 

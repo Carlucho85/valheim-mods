@@ -58,24 +58,62 @@ def fetch_mod(mod: dict, cache: Path) -> bytes:
     owner, name, version = mod["owner"], mod["name"], mod["version"]
     target = cache / f"{owner}-{name}-{version}.zip"
     if "sourceSnapshot" in mod:
-        source_path = safe_release_path(mod["sourceSnapshot"], "sourceSnapshot")
-        target_path = safe_release_path(mod.get("snapshotTarget"), "snapshotTarget")
-        if [part.casefold() for part in source_path.parts[:2]] != ["bepinex", "plugins"]:
-            raise TestReleaseError("sourceSnapshot must refer to a BepInEx/plugins file")
+        snapshot_files = [
+            (
+                mod["sourceSnapshot"],
+                mod.get("snapshotTarget"),
+                mod.get("sourceSha256"),
+                mod,
+                "sourceSha256",
+            )
+        ]
+        additional_files = mod.get("sourceSnapshotFiles", [])
+        if not isinstance(additional_files, list):
+            raise TestReleaseError("sourceSnapshotFiles must be a list")
+        for item in additional_files:
+            if not isinstance(item, dict):
+                raise TestReleaseError("Each sourceSnapshotFiles entry must be an object")
+            snapshot_files.append(
+                (item.get("source"), item.get("target"), item.get("sha256"), item, "sha256")
+            )
+
+        validated_files = []
+        targets = set()
+        for source, destination, expected_hash, record, hash_key in snapshot_files:
+            source_path = safe_release_path(source, "sourceSnapshot")
+            target_path = safe_release_path(destination, "snapshotTarget")
+            if [part.casefold() for part in source_path.parts[:2]] != ["bepinex", "plugins"]:
+                raise TestReleaseError("sourceSnapshot must refer to a BepInEx/plugins file")
+            if target_path.as_posix().casefold() in targets:
+                raise TestReleaseError(f"Duplicate snapshot target: {target_path}")
+            targets.add(target_path.as_posix().casefold())
+            validated_files.append((source_path, target_path, expected_hash, record, hash_key))
+
         try:
             with zipfile.ZipFile(BASE_SERVER_SNAPSHOT) as snapshot:
-                payload = snapshot.read(source_path.as_posix())
+                payloads = [
+                    (
+                        target_path,
+                        snapshot.read(source_path.as_posix()),
+                        expected_hash,
+                        record,
+                        hash_key,
+                    )
+                    for source_path, target_path, expected_hash, record, hash_key in validated_files
+                ]
         except KeyError as exc:
-            raise TestReleaseError(f"Snapshot file not found: {source_path}") from exc
-        digest = sha256_bytes(payload)
-        if mod.get("sourceSha256") and mod["sourceSha256"] != digest:
-            raise TestReleaseError(f"Source SHA-256 mismatch for {source_path}")
-        mod["sourceSha256"] = digest
+            raise TestReleaseError(f"Snapshot file not found: {exc.args[0]}") from exc
+
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
-            info = zipfile.ZipInfo(target_path.as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(info, payload)
+            for target_path, payload, expected_hash, record, hash_key in payloads:
+                digest = sha256_bytes(payload)
+                if expected_hash and expected_hash != digest:
+                    raise TestReleaseError(f"Source SHA-256 mismatch for {target_path}")
+                record[hash_key] = digest
+                info = zipfile.ZipInfo(target_path.as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, payload)
         data = buffer.getvalue()
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
