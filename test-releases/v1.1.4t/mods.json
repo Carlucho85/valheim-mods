@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.1.4t",
+  "base": "v1.1.3",
+  "includes": [
+    "v1.1.1t",
+    "v1.1.3t"
+  ],
+  "excludes": [
+    "UseEquipmentInWater"
+  ],
+  "channel": "test",
+  "description": "Ultima prueba: 7 mods nuevos (contenido, NPC, portales y oceano) sobre la estable 1.1.3.",
+  "mods": [
+    {
+      "owner": "Erkle64",
+      "name": "Plateautem",
+      "version": "0.4.3",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Erkle64/Plateautem/",
+      "notes": "Terreno plano para construir.",
+      "sha256": "74c93c94554ed5c2d9023fd421de6683caa7f0d639a8457413ae7c0165336542"
+    },
+    {
+      "owner": "The_Bees_Decree",
+      "name": "Distant_Dynasties",
+      "version": "3.0.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/Distant_Dynasties/",
+      "notes": "Piezas de construccion. DLL de 272 MB. Pide Jotunn 2.21.3; se usa el Jotunn ya instalado.",
+      "sha256": "1e2ba16e94cbd601aa3012c035c44f5ae2c25aa92aeb3198ac78499253df27ac"
+    },
+    {
+      "owner": "blacks7ar",
+      "name": "RenegadeVikings",
+      "version": "1.4.2",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/blacks7ar/RenegadeVikings/",
+      "notes": "NPC vikingos hostiles, jefes y mercader errante.",
+      "sha256": "2b48dbe649f2e0ac80bf9a9a456ca4aa7b0dc55da0147e0b7457b563167e6680"
+    },
+    {
+      "owner": "RustyMods",
+      "name": "PortalStations",
+      "version": "1.4.7",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/RustyMods/PortalStations/",
+      "notes": "Estaciones de portal y dispositivo de teletransporte personal. Configuracion sincronizada con el servidor.",
+      "sha256": "5e8e07f50eebc628e799e897f538d704b4973e9abfdd6f818465470852ba30f3"
+    },
+    {
+      "owner": "The_Bees_Decree",
+      "name": "VALKEA",
+      "version": "3.0.0",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/The_Bees_Decree/VALKEA/",
+      "notes": "Muebles y decoracion. DLL de 146 MB. Pide Jotunn 2.21.3; se usa el Jotunn ya instalado.",
+      "sha256": "4b9b4189eaf0196f5191f84df13b36195b8d11949ea5aa1f2e143c00947611af"
+    },
+    {
+      "owner": "Soloredis",
+      "name": "RtDOcean",
+      "version": "2.2.54",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDOcean/",
+      "notes": "Oceano y cocina. Incluye traduccion al espanol.",
+      "sha256": "f461dce1e3267c77cf541923b487677cbf41a87d08543174cafe303f5c1fa1f9"
+    },
+    {
+      "owner": "Soloredis",
+      "name": "RtDLegends",
+      "version": "1.3.78",
+      "side": "both",
+      "page": "https://thunderstore.io/c/valheim/p/Soloredis/RtDLegends/",
+      "notes": "Leyendas y jefes. DLL de 242 MB. Incluye traduccion al espanol.",
+      "sha256": "2051c1c6021321e20efb4b4aca1150e6917f226711d9b6f041abac6318ee0060"
+    }
+  ]
+}
