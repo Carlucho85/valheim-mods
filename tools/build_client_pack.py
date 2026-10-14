@@ -26,8 +26,6 @@ SERVER_CONFIG_ALLOWLIST = ROOT / "client-pack" / "server-config-allowlist.txt"
 PACKAGE_NAME = "valheim-mods-cliente.zip"
 MANIFEST_NAME = "client-manifest.json"
 PACKAGE_MANIFEST_NAME = "client-pack-manifest.json"
-FILES_MANIFEST_NAME = "client-files-manifest.json"
-CLIENT_FILE_PREFIX = "client-file-"
 SENSITIVE_PLUGIN_CONFIGS = {"quickconnectserverscfg"}
 SERVER_ONLY_PLUGIN_DLLS = {"maxplayercount.dll"}
 # Duplicate Thunderstore package artwork; Windows treats these case variants as one path.
@@ -663,16 +661,12 @@ def write_package(
         )
 
     package_files.sort(key=lambda entry: entry["path"].casefold())
-    for file in package_files:
-        file["assetName"] = f"{CLIENT_FILE_PREFIX}{file['sha256']}.bin"
     package_manifest = {
         "schemaVersion": 1,
         "version": version,
         "files": package_files,
     }
     manifest_bytes = (json.dumps(package_manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    files_manifest_path = output_dir / FILES_MANIFEST_NAME
-    files_manifest_path.write_bytes(manifest_bytes)
     with open_server_source(server_zip) as source, zipfile.ZipFile(
         package_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1, allowZip64=True
     ) as output:
@@ -713,9 +707,6 @@ def write_package(
         "loaderVersion": loader_info["version"],
         "loaderArchiveName": loader_path.name,
         "loaderSha256": loader_hash,
-        "filesManifestName": FILES_MANIFEST_NAME,
-        "filesManifestSha256": sha256_file(files_manifest_path),
-        "filesManifestSize": files_manifest_path.stat().st_size,
     }
     manifest_path = output_dir / MANIFEST_NAME
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -732,24 +723,9 @@ def write_package(
             raise PackageError(f"Generated ZIP failed CRC verification at {bad}")
         if package.read(PACKAGE_MANIFEST_NAME) != manifest_bytes:
             raise PackageError("Embedded package manifest did not round-trip.")
-
-    unique_payloads: dict[str, tuple[zipfile.ZipInfo, bytes | None]] = {}
-    for member, _, data, digest in file_entries:
-        unique_payloads.setdefault(digest, (member, data))
-    if len(unique_payloads) + 6 > 1000:
-        raise PackageError("The client package exceeds GitHub's 1,000-asset release limit.")
-    with open_server_source(server_zip) as source:
-        for digest, (member, data) in unique_payloads.items():
-            asset_path = output_dir / f"{CLIENT_FILE_PREFIX}{digest}.bin"
-            if data is not None:
-                asset_path.write_bytes(data)
-            else:
-                with source.open(member) as src, asset_path.open("wb") as dest:
-                    shutil.copyfileobj(src, dest, 1024 * 1024)
-            if asset_path.stat().st_size != next(
-                file["size"] for file in package_files if file["sha256"] == digest
-            ) or sha256_file(asset_path) != digest:
-                raise PackageError(f"Generated client asset failed integrity verification: {asset_path.name}")
+    for old_asset in output_dir.glob("client-file-*.bin"):
+        old_asset.unlink()
+    (output_dir / "client-files-manifest.json").unlink(missing_ok=True)
     return manifest
 
 

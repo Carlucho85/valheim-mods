@@ -22,30 +22,14 @@ if (-not (Test-Path (Join-Path $Release "client-manifest.json"))) {
 if ($LASTEXITCODE -ne 0) { throw "Autenticate con gh." }
 
 $Manifest = Get-Content -LiteralPath (Join-Path $Release "client-manifest.json") -Raw | ConvertFrom-Json
-$FilesManifestPath = Join-Path $Release $Manifest.filesManifestName
-if (-not (Test-Path -LiteralPath $FilesManifestPath -PathType Leaf)) {
-    throw "Falta el manifiesto de archivos: $FilesManifestPath"
-}
-$FilesManifest = Get-Content -LiteralPath $FilesManifestPath -Raw | ConvertFrom-Json
 $SharedAssets = @(
     (Join-Path $Release "valheim-mods-cliente.zip"),
     (Join-Path $Release "valheim-mods-cliente.zip.sha256"),
     (Join-Path $Release $Manifest.loaderArchiveName),
     (Join-Path $Release "$($Manifest.loaderArchiveName).sha256")
 )
-$FilesManifestAsset = $FilesManifestPath
 $ClientManifestAsset = Join-Path $Release "client-manifest.json"
-$FileAssets = @()
-$SeenFileAssets = @{}
-foreach ($File in $FilesManifest.files) {
-    $Asset = Join-Path $Release $File.assetName
-    if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) { throw "Falta $Asset" }
-    if (-not $SeenFileAssets.ContainsKey($File.assetName)) {
-        $SeenFileAssets[$File.assetName] = $true
-        $FileAssets += $Asset
-    }
-}
-foreach ($Asset in $SharedAssets + @($FilesManifestAsset, $ClientManifestAsset)) {
+foreach ($Asset in $SharedAssets + @($ClientManifestAsset)) {
     if (-not (Test-Path -LiteralPath $Asset -PathType Leaf)) { throw "Falta $Asset" }
 }
 
@@ -67,20 +51,17 @@ cmd /c "gh release view $Version --repo $Repository >nul 2>nul"
 if ($LASTEXITCODE -eq 0) {
     $ExistingAssets = @(& gh release view $Version --repo $Repository --json assets --jq ".assets[].name")
     if ($LASTEXITCODE -ne 0) { throw "No se pudieron consultar los assets actuales de $Version." }
-    foreach ($Asset in $FileAssets + $SharedAssets) {
+    foreach ($Asset in $SharedAssets) {
         & gh release upload $Version $Asset --repo $Repository --clobber
         if ($LASTEXITCODE -ne 0) { throw "Fallo la subida de $Asset." }
     }
-    $WantedNames = @($FileAssets | ForEach-Object { [System.IO.Path]::GetFileName($_) })
+    & gh release upload $Version $ClientManifestAsset --repo $Repository --clobber
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $ClientManifestAsset." }
     foreach ($OldAsset in $ExistingAssets) {
-        if ($OldAsset -like "client-file-*.bin" -and $OldAsset -notin $WantedNames) {
+        if ($OldAsset -like "client-file-*.bin" -or $OldAsset -eq "client-files-manifest.json") {
             & gh release delete-asset $Version $OldAsset --repo $Repository --yes
             if ($LASTEXITCODE -ne 0) { throw "No se pudo retirar el asset obsoleto $OldAsset." }
         }
-    }
-    foreach ($Asset in @($FilesManifestAsset, $ClientManifestAsset)) {
-        & gh release upload $Version $Asset --repo $Repository --clobber
-        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $Asset." }
     }
     & gh release edit $Version --repo $Repository --notes-file $NotesFile --prerelease
     if ($LASTEXITCODE -ne 0) { throw "Fallo la actualizacion de notas de $Version." }
@@ -88,14 +69,8 @@ if ($LASTEXITCODE -eq 0) {
     & gh release create $Version @SharedAssets --repo $Repository --target $Branch --draft --prerelease `
         --title "Akai Hoshi $Version (PRUEBAS)" --notes-file $NotesFile
     if ($LASTEXITCODE -ne 0) { throw "Fallo la creacion de $Version." }
-    foreach ($Asset in $FileAssets) {
-        & gh release upload $Version $Asset --repo $Repository
-        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida de $Asset." }
-    }
-    foreach ($Asset in @($FilesManifestAsset, $ClientManifestAsset)) {
-        & gh release upload $Version $Asset --repo $Repository
-        if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $Asset." }
-    }
+    & gh release upload $Version $ClientManifestAsset --repo $Repository
+    if ($LASTEXITCODE -ne 0) { throw "Fallo la subida del manifiesto $ClientManifestAsset." }
     & gh release edit $Version --draft=false --prerelease --notes-file $NotesFile
     if ($LASTEXITCODE -ne 0) { throw "Fallo la publicacion de $Version." }
 }

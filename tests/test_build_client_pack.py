@@ -354,30 +354,14 @@ class ClientPackTests(unittest.TestCase):
                 )
                 self.assertEqual(embedded["version"], "v1.0.0")
                 self.assertTrue(all(item["sha256"] for item in embedded["files"]))
-                files_manifest_path = output_dir / build_client_pack.FILES_MANIFEST_NAME
-                files_manifest = json.loads(
-                    files_manifest_path.read_text(encoding="utf-8")
-                )
-                self.assertEqual(embedded["files"], files_manifest["files"])
                 published_manifest = json.loads(
                     (output_dir / build_client_pack.MANIFEST_NAME).read_text(
                         encoding="utf-8"
                     )
                 )
-                self.assertEqual(
-                    published_manifest["filesManifestSha256"],
-                    build_client_pack.sha256_file(files_manifest_path),
-                )
-                self.assertEqual(
-                    published_manifest["filesManifestSize"],
-                    files_manifest_path.stat().st_size,
-                )
-                for item in files_manifest["files"]:
-                    asset = output_dir / item["assetName"]
-                    self.assertEqual(asset.stat().st_size, item["size"])
-                    self.assertEqual(
-                        build_client_pack.sha256_file(asset), item["sha256"]
-                    )
+                self.assertNotIn("filesManifestName", published_manifest)
+                self.assertNotIn("client-files-manifest.json", [path.name for path in output_dir.iterdir()])
+                self.assertFalse(any(path.name.startswith("client-file-") for path in output_dir.iterdir()))
 
     def test_packages_only_allowlisted_server_config_files(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -466,14 +450,12 @@ class ClientPackTests(unittest.TestCase):
                 )
 
             path = "BepInEx/patchers/EpicLootProgressionFix.Preloader.dll"
-            files_manifest = json.loads(
-                (output / build_client_pack.FILES_MANIFEST_NAME).read_text(encoding="utf-8")
-            )
+            with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
+                self.assertEqual(package.read(path), b"preloader")
+                files_manifest = json.loads(package.read(build_client_pack.PACKAGE_MANIFEST_NAME))
             entry = next(item for item in files_manifest["files"] if item["path"] == path)
             self.assertEqual(entry["sha256"], hashlib.sha256(b"preloader").hexdigest())
             self.assertEqual(entry["size"], len(b"preloader"))
-            with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
-                self.assertEqual(package.read(path), b"preloader")
 
     def test_rejects_sensitive_quick_connect_config_allowlist_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
