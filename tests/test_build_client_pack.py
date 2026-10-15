@@ -205,12 +205,8 @@ class ClientPackTests(unittest.TestCase):
                     "plugins/MaxPlayerCount.dll": b"server plugin",
                     "plugins/QuickConnect/QuickConnect.dll": b"quick connect plugin",
                     "plugins/QuickConnect/quick_connect_servers.cfg": b"host:secret",
-                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.2.11",
+                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll": b"2.3.4",
                     "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json": json.dumps(
-                        {"stale": "old"}
-                    ).encode(),
-                    "BepInEx/plugins/thunderstore/AdventureBackpacks.dll": b"2.3.4",
-                    "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json": json.dumps(
                         {"one": "Uno", "new": "Nueva"}
                     ).encode(),
                     "plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json": json.dumps(
@@ -226,7 +222,7 @@ class ClientPackTests(unittest.TestCase):
                 "BepInEx/plugins/AugaLite/translations.json": json.dumps(
                     {"known": "Español", "": ""}
                 ).encode(),
-                "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
+                "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json.overrides.json": json.dumps(
                     {"one": "Mochila"}
                 ).encode(),
                 "BepInEx/plugins/XPortal/Translations/Spanish/xportal-translations-spanish.json.overrides.json": json.dumps(
@@ -281,7 +277,7 @@ class ClientPackTests(unittest.TestCase):
                 build_client_pack.OVERRIDES = original_overrides
 
             self.assertEqual(manifest["version"], "v1.0.0")
-            self.assertEqual(manifest["pluginDllCount"], 2)
+            self.assertEqual(manifest["pluginDllCount"], 3)
             self.assertEqual(directory_manifest["fileCount"], manifest["fileCount"])
             with zipfile.ZipFile(directory_output / build_client_pack.PACKAGE_NAME) as package:
                 self.assertIsNone(package.testzip())
@@ -299,7 +295,7 @@ class ClientPackTests(unittest.TestCase):
                 self.assertTrue(
                     any(
                         entry["target"]
-                        == "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
+                        == "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
                         and entry["mode"] == "merge-json"
                         for entry in akh_manifest["files"]
                     )
@@ -310,7 +306,7 @@ class ClientPackTests(unittest.TestCase):
                 )
                 backpack = json.loads(
                     package.read(
-                        "BepInEx/plugins/thunderstore/AdventureBackpacks.Spanish.json"
+                        "BepInEx/plugins/AdventureBackpacks/Translations/AdventureBackpacks.Spanish.json"
                     )
                 )
                 self.assertEqual(backpack, {"one": "Mochila", "new": "Nueva"})
@@ -324,13 +320,10 @@ class ClientPackTests(unittest.TestCase):
                 )
                 self.assertNotIn("BepInEx/plugins/MaxPlayerCount.dll", package.namelist())
                 self.assertEqual(
-                    package.read("BepInEx/plugins/thunderstore/AdventureBackpacks.dll"),
+                    package.read("BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll"),
                     b"2.3.4",
                 )
-                self.assertNotIn(
-                    "BepInEx/plugins/AdventureBackpacks/AdventureBackpacks.dll",
-                    package.namelist(),
-                )
+                self.assertNotIn("BepInEx/plugins/thunderstore/AdventureBackpacks.dll", package.namelist())
                 self.assertNotIn(
                     "BepInEx/plugins/QuickConnect/QuickConnect.dll",
                     package.namelist(),
@@ -429,7 +422,16 @@ class ClientPackTests(unittest.TestCase):
         self.assertIn("BepInEx/config/ValheimMenu/ValheimMenu.cfg", customizations)
         self.assertIn("BepInEx/config/ValheimMenu/logo.png", customizations)
         self.assertIn("BepInEx/plugins/AugaLite/translations.json", customizations)
-        self.assertEqual(runtime, {})
+        self.assertIn("BepInEx/config/ishid4.mods.betterarchery.cfg", customizations)
+        self.assertIn(
+            "BepInEx/config/randyknapp.mods.equipmentandquickslots.cfg",
+            customizations,
+        )
+        self.assertNotIn("BepInEx/config/akh.masterkeybind.cfg", customizations)
+        self.assertEqual(
+            runtime["AKH_MasterKeybind.dll"],
+            (build_client_pack.AKH_PLUGIN_RUNTIME / "AKH_MasterKeybind.dll").read_bytes(),
+        )
         self.assertTrue(
             customizations["BepInEx/config/ValheimMenu/logo.png"].startswith(b"\x89PNG\r\n\x1a\n")
         )
@@ -437,6 +439,35 @@ class ClientPackTests(unittest.TestCase):
             "Title = Akai Hoshi: Changarök".encode(),
             customizations["BepInEx/config/ValheimMenu/ValheimMenu.cfg"],
         )
+
+    def test_packages_shared_hud_configs_but_not_personal_keybind_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.make_archive(root, {"plugins/Other/Other.dll": b"plugin"})
+            loader, loader_hash = self.make_loader(root)
+            with patch.object(build_client_pack, "LOADER_INFO", root / "bepinex-pack.json"):
+                build_client_pack.LOADER_INFO.write_text(
+                    json.dumps(
+                        {
+                            "version": "test",
+                            "url": "not-used",
+                            "sha256": loader_hash,
+                            "archiveName": "BepInExPack_Valheim-test.zip",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                output = root / "out"
+                build_client_pack.write_package(source, output, "v1.2.0", loader)
+
+            with zipfile.ZipFile(output / build_client_pack.PACKAGE_NAME) as package:
+                names = set(package.namelist())
+                self.assertIn("BepInEx/config/ishid4.mods.betterarchery.cfg", names)
+                self.assertIn(
+                    "BepInEx/config/randyknapp.mods.equipmentandquickslots.cfg",
+                    names,
+                )
+                self.assertNotIn("BepInEx/config/akh.masterkeybind.cfg", names)
 
     def test_akh_runtime_files_are_packaged_as_own_plugin(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

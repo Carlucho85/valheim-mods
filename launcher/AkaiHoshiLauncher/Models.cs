@@ -101,5 +101,5 @@ public sealed record InstallReport(
     string Version,
     int InstalledFiles,
     int RemovedFiles,
-    int PreservedModifiedFiles,
+    int ReusedFiles,
     bool InstalledLoader);
