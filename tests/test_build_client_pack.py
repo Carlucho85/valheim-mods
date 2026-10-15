@@ -419,6 +419,9 @@ class ClientPackTests(unittest.TestCase):
     def test_akh_plugins_contains_menu_customization_and_translations(self) -> None:
         metadata, customizations, runtime = build_client_pack.load_akh_plugin_bundle()
         self.assertEqual(metadata["name"], "AKH Plugins")
+        living_factions = customizations["BepInEx/config/alexandr.livingfactions.cfg"]
+        self.assertIn(b"[Features]", living_factions)
+        self.assertIn(b"HudWidget = false", living_factions)
         self.assertIn("BepInEx/config/ValheimMenu/ValheimMenu.cfg", customizations)
         self.assertIn("BepInEx/config/ValheimMenu/logo.png", customizations)
         self.assertIn("BepInEx/plugins/AugaLite/translations.json", customizations)
@@ -468,6 +471,19 @@ class ClientPackTests(unittest.TestCase):
                     names,
                 )
                 self.assertNotIn("BepInEx/config/akh.masterkeybind.cfg", names)
+                self.assertIn(
+                    "BepInEx/plugins/AKHPlugins/customizations/BepInEx/config/alexandr.livingfactions.cfg",
+                    names,
+                )
+                akh_manifest = json.loads(
+                    package.read("BepInEx/plugins/AKHPlugins/manifest.json")
+                )
+                living_factions_entry = next(
+                    item
+                    for item in akh_manifest["files"]
+                    if item["target"] == "BepInEx/config/alexandr.livingfactions.cfg"
+                )
+                self.assertEqual(living_factions_entry["mode"], "replace")
 
     def test_akh_runtime_files_are_packaged_as_own_plugin(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

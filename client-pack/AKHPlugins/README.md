@@ -7,7 +7,8 @@ instead of editing or scattering them among the upstream mod files:
 - `customizations/` contains client-safe translations, artwork, and config
   files. Preserve their relative `BepInEx/` paths; the packager installs them
   both as AKH-owned source payload and at the destination expected by Valheim
-  or the relevant mod.
+  or the relevant mod. Living Factions' `HudWidget` is disabled here so the
+  faction activity panel does not cover the menu artwork.
 - `src/` contains the source of AKH-owned BepInEx plugins. `src/MasterKeybind`
   is **Master Keybind**: it lists every Valheim and mod keybind under
   *Mod configs* and applies the player's choices. Its config

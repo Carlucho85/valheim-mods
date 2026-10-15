@@ -2,5 +2,5 @@
   "name": "AKH Plugins",
   "version": "1.2.0",
   "private": true,
-  "description": "Private Akai Hoshi client plugin and customizations: code, Spanish translations, Valheim menu artwork, welcome text, and reviewed client settings."
+  "description": "Private Akai Hoshi client plugin and customizations: code, Spanish translations, Valheim menu artwork, reviewed client settings, and the hidden Living Factions HUD widget."
 }

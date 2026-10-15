@@ -15,7 +15,7 @@
     "UseEquipmentInWater"
   ],
   "channel": "stable",
-  "description": "Cliente estable aprobado tras la prueba satisfactoria 1.1.4t. Se omiten cuatro mods retirados; el paquete coincide con el BepInEx de cliente proporcionado, sin sus configuraciones generales, cachés ni logs.",
+  "description": "Cliente estable aprobado tras la prueba satisfactoria 1.1.4t. Se omiten cuatro mods retirados; la descarga integra el hotfix de cliente BetrValheim 5.1.7 y la personalización AKH Plugins que oculta el HUD de Living Factions. Sin cambios de servidor.",
   "mods": [
     {
       "owner": "Erkle64",
