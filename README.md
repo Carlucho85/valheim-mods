@@ -19,6 +19,12 @@ Windows puede pedir permisos de administrador (UAC).
 
 ## Cliente 1.2
 
+La distribución estable 1.2.0 incorpora el BetrValheim 5.1.7 exacto de la
+instalación local, con sus 45 archivos, y desactiva el widget HUD de Living
+Factions desde AKH Plugins. Esto integra los cambios preparados como hotfix
+1.2.1 directamente en la estable; no se crea ni publica una versión 1.2.1.
+No modifica ni sincroniza el servidor.
+
 La prueba 1.1.4t se dio por satisfactoria. La lista de mods nuevos y el anexo
 del inventario conocido del servidor están en
 [`releases/v1.2.0/CHANGELOG.md`](releases/v1.2.0/CHANGELOG.md). Se usa el

@@ -18,6 +18,25 @@ Better Archery. Los valores de la configuración local de cada jugador se
 respetan al actualizar; en una instalación nueva se aplican los ajustes
 compartidos aprobados.
 
+## Actualización integrada en la estable 1.2.0
+
+Se incorpora aquí, sin crear ni distribuir una versión 1.2.1, el hotfix de
+cliente que se había preparado con ese número:
+
+- **BetrValheim 5.1.7** se empaqueta desde los 45 archivos de la instalación
+  local del cliente, incluidos su DLL, recursos gráficos y traducciones. El
+  DLL tiene SHA-256
+  `7aa9799cb0594360bcaf9aafc059d1b1d17cda3aaed1b0d01ff53c9ddc461cea`.
+- El paquete de AKH Plugins desactiva `[Features] HudWidget` de Living Factions
+  para ocultar el panel de actividad de facciones. La configuración se
+  administra desde `client-pack/AKHPlugins/customizations/`.
+- El paquete estable sigue usando la versión más reciente de AKH Plugins
+  incluida en el repositorio y el formato compacto de 1.1.3.
+
+Este cambio es solo de cliente. La compatibilidad de BetrValheim con la
+versión instalada en el servidor no se ha verificado en esta actualización;
+no se ha modificado ni sincronizado el servidor.
+
 ## Mods retirados
 
 No se incluyen **Distant Dynasties**, **RenegadeVikings**, **PortalStations** ni
