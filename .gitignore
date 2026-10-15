@@ -1,6 +1,8 @@
 .artifacts/
 launcher/AkaiHoshiLauncher/bin/
 launcher/AkaiHoshiLauncher/obj/
+tests/LauncherPolicyTests/bin/
+tests/LauncherPolicyTests/obj/
 __pycache__/
 *.py[cod]
 valheim-mods-cliente.zip

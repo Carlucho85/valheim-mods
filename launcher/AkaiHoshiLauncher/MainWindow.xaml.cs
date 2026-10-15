@@ -94,7 +94,7 @@ public partial class MainWindow : Window
             ReleaseStatusText.Text = current
                 ? $"Ya tienes la versión de pruebas {_manifest.Version}"
                 : $"Se instalará la versión de pruebas {_manifest.Version}";
-            StatusText.Text = "Al instalar se purgará cualquier instalación de mods anterior (se guarda una copia en AKH-purged).";
+            StatusText.Text = "Al actualizar se eliminarán los mods obsoletos y se conservarán tus ajustes personales.";
 #else
             ReleaseStatusText.Text = current
                 ? $"Ya tienes la versión {_manifest.Version}"
@@ -221,18 +221,13 @@ public partial class MainWindow : Window
             string details = result.InstalledLoader
                 ? "BepInEx y los mods quedaron instalados."
                 : "Los mods quedaron instalados.";
-            if (result.PreservedModifiedFiles > 0)
-                details += $" Se conservaron {result.PreservedModifiedFiles} archivo(s) obsoleto(s) que habías modificado.";
+            if (result.RemovedFiles > 0)
+                details += $" Se eliminaron {result.RemovedFiles} archivo(s) obsoleto(s).";
+            if (result.ReusedFiles > 0)
+                details += $" Se reutilizaron {result.ReusedFiles} archivo(s) idéntico(s).";
             StatusText.Text = details;
             InstallProgressBar.Value = 100;
             PlayButton.IsEnabled = SteamLocator.IsValheimDirectory(_state.GamePath);
-            if (result.PreservedModifiedFiles > 0)
-                MessageBox.Show(
-                    this,
-                    $"{details}\n\nRevisa la carpeta de mods si conservaste plugins modificados.",
-                    "Instalación completada",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
         }
         catch (OperationCanceledException)
         {

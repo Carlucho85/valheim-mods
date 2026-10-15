@@ -12,9 +12,15 @@ instead of editing or scattering them among the upstream mod files:
   is **Master Keybind**: it lists every Valheim and mod keybind under
   *Mod configs* and applies the player's choices. Its config
   (`BepInEx/config/akh.masterkeybind.cfg`) is never shipped in the package and
-  the launcher preserves it across clean installs, so keys survive updates.
+  the launcher preserves it across updates, so keys survive.
 - `runtime/` contains the built plugin assembly and any runtime dependencies.
   The packager installs these under `BepInEx/plugins/AKHPlugins/`.
+
+Approved shared settings such as the Better Archery and Equipment and Quick
+Slots HUD defaults are included for new installations. During updates the
+launcher preserves existing local copies of those two configs and
+`akh.masterkeybind.cfg`; other configs not managed by the package are left
+untouched.
 
 When AKH code is added, build it from `src/` into `runtime/` and test that the
 resulting DLL is present in the generated client archive. Configs and

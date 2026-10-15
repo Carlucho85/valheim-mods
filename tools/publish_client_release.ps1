@@ -115,21 +115,27 @@ foreach ($Asset in $Assets) {
     }
 }
 
-$Notes = @"
+$ReleaseNotesPath = "releases\$Version\CHANGELOG.md"
+if (Test-Path -LiteralPath $ReleaseNotesPath -PathType Leaf) {
+    $NotesArguments = @("--notes-file", $ReleaseNotesPath)
+}
+else {
+    $Notes = @"
 Modpack cliente $Version para Akai Hoshi: Changarök.
 
 Los jugadores descargan únicamente AkaiHoshiLauncher.exe. El launcher detecta Valheim en Steam, instala BepInEx cuando falta y descarga/verifica el modpack de esta release.
 
-Actualizado desde el ZIP de plugins del servidor. Assets preparados por tools/build_client_pack.py.
+Assets preparados por tools/build_client_pack.py.
 "@
+    $NotesArguments = @("--notes", $Notes)
+}
 $CreateArguments = @(
     "release", "create", $Version,
     "--repo", $Repository,
     "--target", $DefaultBranch,
     "--draft",
-    "--title", "Akai Hoshi $Version",
-    "--notes", $Notes
-) + $Assets
+    "--title", "Akai Hoshi $Version"
+) + $NotesArguments + $Assets
 & gh @CreateArguments
 if ($LASTEXITCODE -ne 0) {
     throw "GitHub rechazó la creación de la release."

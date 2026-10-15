@@ -50,10 +50,9 @@ public sealed class InstallService
         var applied = new List<(string Destination, string? RollbackPath)>();
         int installed = 0;
         int removed = 0;
-        int preserved = 0;
+        int reused = 0;
         bool installedLoader = false;
         string? persistentBackup = null;
-        string? purgeBackup = null;
         try
         {
             progress.Report(new InstallProgress("Descargando el modpack desde GitHub…", 3));
@@ -70,9 +69,6 @@ public sealed class InstallService
             PackageManifest packageManifest = await Task.Run(
                 () => ExtractAndVerifyPackage(packageArchive, packageStage, releaseManifest.Version),
                 cancellationToken);
-
-            progress.Report(new InstallProgress("Instalación limpia: apartando los mods anteriores…", 58));
-            purgeBackup = PurgeExistingInstall(gamePath);
 
             var loaderFiles = new List<StagedFile>();
             if (!HasBepInEx(gamePath))
@@ -106,9 +102,22 @@ public sealed class InstallService
             HashSet<string> nextPaths = packageManifest.Files
                 .Select(file => file.Path)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, string> destinationToRollback = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> reusablePaths = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ManagedFile file in packageManifest.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string destination = SafeCombine(gamePath, file.Path);
+                if (!File.Exists(destination))
+                    continue;
+                if (InstallFilePolicy.IsPreservedUserFile(file.Path)
+                    || await InstallFilePolicy.MatchesFileAsync(
+                        destination, file.Size, file.Sha256, cancellationToken))
+                    reusablePaths.Add(file.Path);
+            }
 
-            long requiredGameSpace = packageManifest.Files.Sum(file => file.Size)
+            long requiredGameSpace = packageManifest.Files
+                .Where(file => !reusablePaths.Contains(file.Path))
+                .Sum(file => file.Size)
                 + loaderFiles.Sum(file => file.Size);
             DriveInfo gameDrive = new(Path.GetPathRoot(Path.GetFullPath(gamePath))!);
             if (gameDrive.AvailableFreeSpace < requiredGameSpace)
@@ -128,7 +137,6 @@ public sealed class InstallService
                         gamePath,
                         file,
                         previousFiles,
-                        destinationToRollback,
                         applied,
                         rollbackDirectory,
                         backupDirectory,
@@ -141,12 +149,17 @@ public sealed class InstallService
             foreach (ManagedFile file in packageManifest.Files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (reusablePaths.Contains(file.Path))
+                {
+                    reused++;
+                    installed++;
+                    continue;
+                }
                 string source = SafeCombine(packageStage, file.Path);
                 await ApplyFileAsync(
                     gamePath,
                     new StagedFile(file.Path, source, file.Size),
                     previousFiles,
-                    destinationToRollback,
                     applied,
                     rollbackDirectory,
                     backupDirectory,
@@ -159,21 +172,16 @@ public sealed class InstallService
                     65 + (packageManifest.Files.Count == 0 ? 30 : index * 30d / packageManifest.Files.Count)));
             }
 
-            foreach ((string stalePath, string expectedHash) in previousFiles)
+            foreach (string stalePath in previousFiles.Keys)
             {
                 if (nextPaths.Contains(stalePath))
+                    continue;
+                if (InstallFilePolicy.IsPreservedUserFile(stalePath))
                     continue;
                 cancellationToken.ThrowIfCancellationRequested();
                 string destination = SafeCombine(gamePath, stalePath);
                 if (!File.Exists(destination))
                     continue;
-
-                string currentHash = await HashFileAsync(destination, cancellationToken);
-                if (!string.Equals(currentHash, expectedHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    preserved++;
-                    continue;
-                }
 
                 string rollbackPath = SafeCombine(rollbackDirectory, stalePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(rollbackPath)!);
@@ -183,7 +191,17 @@ public sealed class InstallService
                 removed++;
             }
 
-            RestoreUserFiles(gamePath, purgeBackup);
+            foreach (string stalePath in InstallFilePolicy.FindObsoletePluginFiles(gamePath, nextPaths))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string destination = SafeCombine(gamePath, stalePath);
+                string rollbackPath = SafeCombine(rollbackDirectory, stalePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(rollbackPath)!);
+                File.Copy(destination, rollbackPath, overwrite: true);
+                applied.Add((destination, rollbackPath));
+                File.Delete(destination);
+                removed++;
+            }
 
             progress.Report(new InstallProgress("Verificando que solo existe esta versión…", 96));
             VerifyResult verification = await VerifyInstallAsync(
@@ -204,14 +222,13 @@ public sealed class InstallService
 
             succeeded = true;
             progress.Report(new InstallProgress("Mods instalados y verificados.", 100));
-            return new InstallReport(releaseManifest.Version, installed, removed, preserved, installedLoader);
+            return new InstallReport(releaseManifest.Version, installed, removed, reused, installedLoader);
         }
         catch (Exception installError)
         {
             try
             {
                 Rollback(applied);
-                RestorePurge(gamePath, purgeBackup);
             }
             catch (Exception rollbackError)
             {
@@ -229,77 +246,6 @@ public sealed class InstallService
             if (!succeeded && persistentBackup is not null && Directory.Exists(persistentBackup)
                 && !Directory.EnumerateFileSystemEntries(persistentBackup).Any())
                 Directory.Delete(persistentBackup);
-        }
-    }
-
-    private static readonly string[] PurgedEntries =
-        ["BepInEx", "winhttp.dll", "doorstop_config.ini", ".doorstop_version", "changelog.txt", "doorstop_libs"];
-
-    // Moves any BepInEx/mod installation aside (same volume, so it is instant) and keeps only the latest copy.
-    private static string? PurgeExistingInstall(string gamePath)
-    {
-        string root = Path.Combine(gamePath, "AKH-purged");
-        string[] present = PurgedEntries.Where(name =>
-            File.Exists(Path.Combine(gamePath, name)) || Directory.Exists(Path.Combine(gamePath, name))).ToArray();
-        if (present.Length == 0)
-            return null;
-
-        if (Directory.Exists(root))
-            Directory.Delete(root, recursive: true);
-        string backup = Path.Combine(root, DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss"));
-        Directory.CreateDirectory(backup);
-        foreach (string name in present)
-        {
-            string source = Path.Combine(gamePath, name);
-            string target = Path.Combine(backup, name);
-            if (Directory.Exists(source))
-                Directory.Move(source, target);
-            else
-                File.Move(source, target);
-        }
-        return backup;
-    }
-
-    private static void RestorePurge(string gamePath, string? backup)
-    {
-        if (backup is null || !Directory.Exists(backup))
-            return;
-        foreach (string name in PurgedEntries)
-        {
-            string current = Path.Combine(gamePath, name);
-            if (Directory.Exists(current))
-                Directory.Delete(current, recursive: true);
-            else if (File.Exists(current))
-                File.Delete(current);
-        }
-        foreach (string entry in Directory.EnumerateFileSystemEntries(backup))
-        {
-            string target = Path.Combine(gamePath, Path.GetFileName(entry));
-            if (Directory.Exists(entry))
-                Directory.Move(entry, target);
-            else
-                File.Move(entry, target);
-        }
-    }
-
-    // Ajustes del jugador que sobreviven a la instalación limpia y nunca viajan en el modpack.
-    private static readonly string[] UserFiles = ["BepInEx/config/akh.masterkeybind.cfg"];
-
-    private static readonly string[] CodeRoots = ["BepInEx/plugins", "BepInEx/patchers", "BepInEx/monomod"];
-    private static readonly string[] CodeExtensions = [".dll", ".exe"];
-
-    private static void RestoreUserFiles(string gamePath, string? backup)
-    {
-        if (backup is null)
-            return;
-        foreach (string relative in UserFiles)
-        {
-            string source = Path.Combine(backup, relative.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(source))
-                continue;
-            string target = SafeCombine(gamePath, relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            File.Copy(source, target, overwrite: true);
         }
     }
 
@@ -338,13 +284,14 @@ public sealed class InstallService
                     problems.Add($"Falta: {relative}");
                     continue;
                 }
-                bool isCode = CodeExtensions.Contains(Path.GetExtension(relative), StringComparer.OrdinalIgnoreCase);
+                bool isCode = InstallFilePolicy.CodeExtensions.Contains(
+                    Path.GetExtension(relative), StringComparer.OrdinalIgnoreCase);
                 if (isCode && (new FileInfo(destination).Length != file.Size
                     || !string.Equals(HashFile(destination), file.Sha256, StringComparison.OrdinalIgnoreCase)))
                     problems.Add($"Modificado o de otra versión: {relative}");
             }
 
-            foreach (string root in CodeRoots)
+            foreach (string root in InstallFilePolicy.CodeRoots)
             {
                 string directory = SafeCombine(gamePath, root);
                 if (!Directory.Exists(directory))
@@ -352,7 +299,7 @@ public sealed class InstallService
                 foreach (string path in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!CodeExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+                    if (!InstallFilePolicy.CodeExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
                         continue;
                     string relative = Path.GetRelativePath(gamePath, path).Replace('\\', '/');
                     if (!expected.Contains(relative))
@@ -473,7 +420,6 @@ public sealed class InstallService
         string gamePath,
         StagedFile file,
         Dictionary<string, string> previousFiles,
-        Dictionary<string, string> destinationToRollback,
         List<(string Destination, string? RollbackPath)> applied,
         string rollbackDirectory,
         string backupDirectory,
@@ -486,13 +432,14 @@ public sealed class InstallService
         string? rollbackPath = null;
         bool existed = File.Exists(destination);
 
+        if (existed && InstallFilePolicy.IsPreservedUserFile(relative))
+            return;
+
         if (existed)
         {
             rollbackPath = SafeCombine(rollbackDirectory, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(rollbackPath)!);
             File.Copy(destination, rollbackPath, overwrite: true);
-            destinationToRollback[destination] = rollbackPath;
-
             bool previouslyManaged = previousFiles.TryGetValue(relative, out string? previousHash);
             bool isConfiguration = relative.StartsWith("BepInEx/config/", StringComparison.OrdinalIgnoreCase);
             bool wasModified = previouslyManaged

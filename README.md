@@ -1,7 +1,7 @@
-﻿# Akai Hoshi — Valheim mods 1.1
+# Akai Hoshi — Valheim mods 1.2
 
-Modpack estable **1.1.3** de **Akai Hoshi: Changarök** y launcher para instalar
-y actualizar los mods de cliente.
+Cliente estable **1.2.0** de **Akai Hoshi: Changarök**, con launcher para
+instalar y actualizar el modpack.
 
 ## Jugadores
 
@@ -9,76 +9,36 @@ y actualizar los mods de cliente.
 2. Ejecútalo, selecciona la carpeta de Valheim si no se detecta automáticamente y pulsa **Instalar / actualizar mods**.
 3. Pulsa **Jugar a Valheim**.
 
-El launcher conserva el diseño y el flujo de actualización de la versión
-estable anterior. Instala BepInEx si hace falta, obtiene la versión estable del
-modpack desde GitHub Releases y comprueba SHA-256 antes de instalar. Detecta
-instalaciones de Steam y copia cualquier archivo que vaya a reemplazar por
-primera vez a `%LOCALAPPDATA%\AkaiHoshi\backups`, incluidas las modificaciones
-locales en archivos del pack que van a actualizarse. También conserva los
-archivos modificados que ya no forman parte de la nueva versión.
+El launcher verifica SHA-256, conserva los archivos idénticos que ya están
+instalados y elimina los mods obsoletos sin crear `AKH-purged`. Mantiene los
+ajustes personales de AKH MasterKeybind, Equipment and Quick Slots y Better
+Archery. La descarga continúa siendo un único ZIP completo, igual que en 1.1.3;
+la reutilización evita volver a copiar en disco los archivos coincidentes.
+Funciona en Windows de 64 bits con Valheim en Steam. En carpetas protegidas,
+Windows puede pedir permisos de administrador (UAC).
 
-La descarga del modpack supera los 700 MiB. La primera instalación necesita
-espacio libre adicional para descargar, verificar y preparar los archivos.
-Actualmente el launcher está dirigido a **Windows de 64 bits con Valheim en
-Steam**. Al instalar o actualizar en una carpeta protegida de Steam, Windows
-pedirá permiso de administrador (UAC). Si el ejecutable no está firmado,
-Windows SmartScreen puede mostrar una advertencia; descarga el launcher
-únicamente desde este repositorio.
+## Cliente 1.2
 
-## Administrador del servidor
+La prueba 1.1.4t se dio por satisfactoria. La lista de mods nuevos y el anexo
+del inventario conocido del servidor están en
+[`releases/v1.2.0/CHANGELOG.md`](releases/v1.2.0/CHANGELOG.md). Se usa el
+contenido de plugins del cliente aportado para 1.2; no se incluyen sus
+configuraciones generales, cachés ni logs. Cuatro mods retirados durante la
+prueba no se distribuyen.
 
-Los snapshots saneados de las carpetas BepInEx 1.1 están en `sources/` y se
-siguen mediante Git LFS. Se retiraron `BepInEx/config`, cachés y logs para no
-publicar ajustes privados del servidor o del cliente. No son copias byte a byte
-de los adjuntos originales.
+**AKH Plugins** es nuestro plugin privado: reúne las traducciones al español,
+el artwork del menú y los ajustes cliente revisados. No tiene página externa.
+Su fuente, personalizaciones y DLL están en `client-pack/AKHPlugins/`.
 
-Para regenerar el paquete desde Windows con Python 3, .NET 8 SDK y GitHub CLI
-autenticado:
+## Fuentes y desarrollo
 
-```powershell
-.\tools\publish_client_release.ps1 `
-  -ServerPlugins ".\sources\BepInEx-server-1.1-sanitized.zip" `
-  -Version "v1.1.3"
-```
-
-El inventario del cliente 1.1 contiene 44 DLL únicas; el servidor tiene las
-mismas más `MaxPlayerCount.dll`, que se excluye del paquete cliente.
-`QuickConnect` se omite también. Para las DLL compartidas, el servidor es la
-fuente canónica. En la validación de 1.1 se comparó el resultado contra el
-inventario del cliente. Las localizaciones y el menú personalizado se mantienen
-en `client-pack/AKHPlugins/`; no se copian configuraciones generales del
-servidor.
-
-No se detectaron nombres de DLL nuevos respecto al paquete estable 1.0.4.
-Cuatro DLL tenían hashes distintos entre los adjuntos de cliente y servidor
-1.1 (`BepInEx.ConfigDrawers`, `DoorOpenerBruh`, `ShieldMeBruh` y
-`ValheimBuildCamera`); para esas se usan los bytes de la copia del servidor.
-AdventureBackpacks, Advize_PlantEasily, AmmoCount, BepInEx.ConfigDrawers,
-DoorOpenerBruh, MinimalStatusEffects y ShieldMeBruh aparecen en carpetas de
-plugins instalados en 1.1, pero ya estaban en `thunderstore/` del paquete
-estable anterior.
-
-Todo cambio propio del modpack —en versiones de prueba o estables— debe
-residir en **AKH Plugins** (`client-pack/AKHPlugins/`): traducciones, artwork,
-configuraciones cliente revisadas y código propio. `customizations/` mantiene
-el contenido instalado en las rutas que esperan Valheim y los mods;
-`src/` y `runtime/` están reservados al código fuente y los binarios del plugin
-AKH. El generador incluye el manifiesto de AKH Plugins en cada paquete y alinea
-su versión con la release. Los archivos de traducción/configuración por sí
-solos son contenido, no código ejecutable; al añadir código se debe compilar
-su DLL en `runtime/` y verificar que se distribuya dentro de
-`BepInEx/plugins/AKHPlugins/`. No se publican credenciales ni configuraciones
-privadas o exclusivas del servidor.
-
-Las copias fuente grandes se guardan con Git LFS. Los assets descargables del
-launcher y del modpack se publican en GitHub Releases.
-
-## Desarrollo
+Los snapshots saneados del servidor 1.1 están en `sources/`; no son copias
+byte a byte ni una sincronización con el servidor 1.2. El launcher genera
+paquetes ZIP compactos con manifiestos y SHA-256, siguiendo el flujo de 1.1.3.
+No se publican credenciales ni configuraciones privadas.
 
 ```powershell
 python -m unittest discover -s tests -v
+dotnet run --project .\tests\LauncherPolicyTests\LauncherPolicyTests.csproj
 dotnet build .\launcher\AkaiHoshiLauncher\AkaiHoshiLauncher.csproj -c Release
 ```
-
-La GitHub Action valida el generador y compila el launcher para Windows al
-publicar una release.
