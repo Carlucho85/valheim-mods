@@ -15,17 +15,31 @@ BASE = "https://dashboard.indifferentbroccoli.com"
 
 
 def load():
-    tokens = shlex.split(CURL_FILE.read_text(encoding="utf-8").replace("\\\n", " "), posix=True)
-    url, data, cookie = tokens[1], None, None
+    command = CURL_FILE.read_text(encoding="utf-8")
+    command = command.replace("\\\r\n", " ").replace("\\\n", " ")
+    command = re.sub(r"\^\s*\r?\n", " ", command)
+    tokens = [token for token in shlex.split(command, posix=True) if token != "^"]
+    url_index = next(
+        (index for index, token in enumerate(tokens) if token.startswith(("http://", "https://"))),
+        None,
+    )
+    if url_index is None:
+        raise ValueError(
+            "restart.curl.txt must contain the copied cURL request, not the JSON response."
+        )
+    url, data, cookie = tokens[url_index], None, None
     headers = {}
-    i = 2
+    i = url_index + 1
     while i < len(tokens):
-        tok = tokens[i]
+        tok = tokens[i].lstrip("^")
         if tok in ("-b", "--cookie"):
             cookie = tokens[i + 1]; i += 2
         elif tok in ("-H", "--header"):
             name, _, value = tokens[i + 1].partition(":")
-            if not name.lower().startswith(("sec-", "cookie")):
+            name = name.strip().lstrip("^")
+            if name.strip().lower() == "cookie":
+                cookie = value.strip()
+            elif not name.lower().startswith("sec-"):
                 headers[name.strip()] = value.strip()
             i += 2
         elif tok in ("--data-raw", "--data", "-d"):
@@ -51,7 +65,10 @@ def restart(url, data, headers):
 
 
 if __name__ == "__main__":
-    url, data, headers = load()
+    try:
+        url, data, headers = load()
+    except (OSError, ValueError) as exc:
+        sys.exit(f"invalid restart.curl.txt: {exc}")
     valid, final = session_valid(headers)
     print("session valid:", valid)
     if "--confirm" not in sys.argv:

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.2.1t",
+  "base": "v1.2.0",
+  "baseClientRelease": "v1.2.0",
+  "includes": [],
+  "excludes": [],
+  "channel": "test",
+  "description": "Prueba de compatibilidad de dungeons RtD tras alinear el BepInEx del servidor con 5.4.2351. El contenido de plugins del cliente se conserva desde v1.2.0.",
+  "serverLoader": {
+    "package": "denikson/BepInExPack_Valheim",
+    "previousVersion": "5.4.2333",
+    "version": "5.4.2351",
+    "sha256": "bce631497976a93977ceb08e166712e6c31d15244956f89f17df092a9b62e29f"
+  },
+  "mods": []
+}

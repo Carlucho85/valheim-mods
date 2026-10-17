@@ -505,6 +505,7 @@ def write_package(
     server_config_dir: Path | None = None,
     config_allowlist: Path = SERVER_CONFIG_ALLOWLIST,
     plugin_override_dir: Path | None = None,
+    readme_path: Path | str | None = None,
 ) -> dict[str, Any]:
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:t\d*|[-+][A-Za-z0-9.-]+)?", version):
         raise PackageError("Version must be a semantic version tag such as v1.0.0 or a test tag such as v1.1.1t.")
@@ -665,9 +666,9 @@ def write_package(
             else:
                 with source.open(member) as src, output.open(target, "w", force_zip64=True) as dest:
                     shutil.copyfileobj(src, dest, 1024 * 1024)
-        readme_path = "README.txt"
-        readme_data = README.read_bytes()
-        output.writestr(readme_path, readme_data)
+        readme_archive_path = "README.txt"
+        readme_data = Path(readme_path or README).read_bytes()
+        output.writestr(readme_archive_path, readme_data)
         output.writestr(PACKAGE_MANIFEST_NAME, manifest_bytes)
 
     package_hash = sha256_file(package_path)
@@ -732,6 +733,12 @@ def main() -> int:
         type=Path,
         help="Optional folder of BepInEx/plugins files that replace or supplement server plugins",
     )
+    parser.add_argument(
+        "--readme",
+        type=Path,
+        default=README,
+        help="Optional README.txt to include in the client package",
+    )
     args = parser.parse_args()
     try:
         result = write_package(
@@ -742,6 +749,7 @@ def main() -> int:
             args.server_config_folder,
             args.config_allowlist,
             args.plugin_overrides,
+            args.readme,
         )
     except (PackageError, OSError, zipfile.BadZipFile) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
